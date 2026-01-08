@@ -468,6 +468,36 @@ onMounted(async () => {
 .task-empty { padding: 32px; text-align: center; color: var(--text-muted); font-size: 14px; }
 
 @media (max-width: 768px) {
-  .task-panel { bottom: 16px; right: 16px; left: 16px; width: auto; }
+  .task-panel { 
+    bottom: 0; 
+    right: 0; 
+    left: 0; 
+    width: 100%; 
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 50vh;
+  }
+  .task-panel-header { padding: 14px 16px; }
+  .task-panel-title { font-size: 13px; }
+  .task-panel-body { max-height: calc(50vh - 50px); }
+  .task-item { padding: 12px 16px; }
+  .task-item-icon { width: 28px; height: 28px; font-size: 12px; }
+  .task-item-title { font-size: 13px; }
+  .task-item-desc { font-size: 12px; }
+  
+  .tool-title { padding: 16px; margin-bottom: 20px; }
+  .tool-icon-box { font-size: 1.5rem; }
+  .tool-text h1 { font-size: 1rem; }
+  .tool-text p { font-size: 10px; }
+  
+  .outline-info { padding: 16px; margin-bottom: 20px; }
+  .outline-info h4 { font-size: 1.1rem; }
+  .outline-info p { font-size: 13px; }
+  .outline-chapters { margin-bottom: 20px; }
+  .outline-chapter-item { padding: 12px; margin-bottom: 10px; }
+  .chapter-badge { width: 24px; height: 24px; font-size: 11px; }
+  .chapter-title-input { padding: 8px 10px; font-size: 13px; }
+  .chapter-desc-input { padding: 8px 10px; font-size: 12px; }
+  .btn-add-chapter { padding: 10px; font-size: 13px; }
+  .feedback-section label { font-size: 13px; }
 }
 </style>

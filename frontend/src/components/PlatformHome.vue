@@ -371,12 +371,46 @@ defineEmits(['enter-tool', 'logout'])
 }
 
 @media (max-width: 768px) {
-  .hero-section h1 { font-size: 1.75rem; }
-  .hero-section p { font-size: 1rem; }
-  .tools-grid { grid-template-columns: 1fr; }
-  .platform-main { padding: 32px 16px; }
+  .platform-header { padding-top: env(safe-area-inset-top, 0px); }
   .header-content { padding: 12px 16px; }
+  .logo-icon-box { width: 36px; height: 36px; border-radius: 10px; }
+  .logo-svg { width: 22px; height: 22px; }
+  .logo-text h1 { font-size: 1rem; }
+  .logo-text p { font-size: 10px; }
   .user-name { display: none; }
-  .logo-text h1 { font-size: 1.1rem; }
+  .user-avatar { width: 32px; height: 32px; font-size: 14px; }
+  .btn-logout { padding: 6px 12px; font-size: 12px; }
+  
+  .platform-main { padding: 24px 16px; }
+  .hero-section { margin-bottom: 32px; }
+  .hero-section h1 { font-size: 1.5rem; line-height: 1.3; }
+  .hero-section p { font-size: 0.95rem; }
+  
+  .section-header { margin-bottom: 20px; }
+  .section-header h2 { font-size: 1.25rem; }
+  
+  .tools-grid { grid-template-columns: 1fr; gap: 16px; }
+  .tool-card { padding: 20px; }
+  .tool-icon { font-size: 2rem; }
+  .tool-card h3 { font-size: 1.1rem; }
+  .tool-card p { font-size: 13px; }
+  .tool-features { gap: 6px; }
+  .tool-features span { font-size: 11px; padding: 3px 8px; }
+  
+  .platform-footer { padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+}
+
+@media (max-width: 480px) {
+  .header-content { padding: 10px 12px; gap: 8px; }
+  .platform-logo { gap: 8px; }
+  .logo-icon-box { width: 32px; height: 32px; }
+  .logo-svg { width: 20px; height: 20px; }
+  
+  .platform-main { padding: 20px 12px; }
+  .hero-section h1 { font-size: 1.35rem; }
+  
+  .tool-card { padding: 16px; }
+  .tool-header { margin-bottom: 12px; }
+  .tool-badge { font-size: 10px; padding: 3px 8px; }
 }
 </style>

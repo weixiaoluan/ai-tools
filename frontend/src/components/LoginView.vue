@@ -142,7 +142,15 @@ async function handleLogin() {
 .auth-footer a:hover { text-decoration: underline; }
 
 @media (max-width: 480px) {
-  .auth-card { padding: 32px 24px; }
+  .auth-container { padding: 16px; align-items: flex-start; padding-top: calc(60px + env(safe-area-inset-top, 0px)); }
+  .auth-card { padding: 28px 20px; border-radius: var(--radius-lg); }
+  .auth-header { margin-bottom: 28px; }
+  .logo-icon-box { width: 56px; height: 56px; border-radius: 14px; }
+  .auth-logo-svg { width: 36px; height: 36px; }
   .auth-header h1 { font-size: 1.5rem; }
+  .auth-header p { font-size: 14px; }
+  .form-group label { font-size: 13px; }
+  .input-field { padding: 12px 14px; }
+  .btn { padding: 14px 20px; }
 }
 </style>

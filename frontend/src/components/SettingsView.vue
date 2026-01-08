@@ -206,7 +206,14 @@ onMounted(loadConfig)
 .settings-section { margin-bottom: 28px; }
 .settings-section h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
 .section-desc { color: var(--text-secondary); font-size: 14px; }
-.form-hint { display: block; margin-top: 8px; font-size: 13px; color: var(--text-muted); }
+.form-hint { display: block; margin-top: 8px; font-size: 13px; color: var(--text-muted); word-break: break-all; }
 .form-hint a { color: var(--primary); text-decoration: none; }
 .form-hint a:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .settings-section { margin-bottom: 20px; }
+  .settings-section h3 { font-size: 1rem; }
+  .section-desc { font-size: 13px; }
+  .form-hint { font-size: 12px; }
+}
 </style>
