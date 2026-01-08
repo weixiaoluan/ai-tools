@@ -38,15 +38,13 @@ install_docker() {
     fi
 }
 
-# 2. 检查并安装 Docker Compose
+# 2. 检查 Docker Compose (Docker 26+ 内置)
 install_docker_compose() {
-    if command -v docker-compose &> /dev/null || docker compose version &> /dev/null; then
-        log_success "Docker Compose 已安装"
+    if docker compose version &> /dev/null; then
+        log_success "Docker Compose 已安装: $(docker compose version --short)"
     else
-        log_info "安装 Docker Compose..."
-        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        chmod +x /usr/local/bin/docker-compose
-        log_success "Docker Compose 安装完成"
+        log_error "Docker Compose 不可用，请升级 Docker"
+        exit 1
     fi
 }
 
@@ -95,10 +93,10 @@ start_services() {
     cd "$INSTALL_DIR"
     
     # 停止旧容器
-    docker-compose down 2>/dev/null || true
+    docker compose down 2>/dev/null || true
     
     # 构建并启动
-    docker-compose up -d --build
+    docker compose up -d --build
     
     log_success "服务启动完成!"
 }
@@ -144,16 +142,16 @@ show_status() {
     echo "域名访问: http://ai.flytest.com.cn (需配置 DNS)"
     echo ""
     echo "常用命令:"
-    echo "  查看日志: cd $INSTALL_DIR && docker-compose logs -f"
-    echo "  重启服务: cd $INSTALL_DIR && docker-compose restart"
-    echo "  停止服务: cd $INSTALL_DIR && docker-compose down"
-    echo "  更新部署: cd $INSTALL_DIR && git pull && docker-compose up -d --build"
+    echo "  查看日志: cd $INSTALL_DIR && docker compose logs -f"
+    echo "  重启服务: cd $INSTALL_DIR && docker compose restart"
+    echo "  停止服务: cd $INSTALL_DIR && docker compose down"
+    echo "  更新部署: cd $INSTALL_DIR && git pull && docker compose up -d --build"
     echo ""
     echo -e "${YELLOW}注意: 请确保 .env 文件中的 DEEPSEEK_API_KEY 已正确配置${NC}"
     echo ""
     
     # 显示容器状态
-    docker-compose ps
+    docker compose ps
 }
 
 # 执行部署
