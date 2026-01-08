@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI学习系统 - 智能生成学习内容</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">📚</span>
+                <h1>AI学习系统</h1>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-item active" data-view="home">
+                    <span class="icon">🏠</span>
+                    <span>首页</span>
+                </button>
+                <button class="nav-item" data-view="articles">
+                    <span class="icon">📝</span>
+                    <span>文章列表</span>
+                </button>
+                <button class="nav-item" data-view="documents">
+                    <span class="icon">📖</span>
+                    <span>学习文档</span>
+                </button>
+                <button class="nav-item" data-view="settings">
+                    <span class="icon">⚙️</span>
+                    <span>设置</span>
+                </button>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 首页视图 -->
+            <div id="home-view" class="view active">
+                <div class="hero-section">
+                    <h2>🤖 AI智能学习内容生成</h2>
+                    <p>输入你想学习的内容，AI将为你生成系统化的学习资料</p>
+                </div>
+                
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="topic-input">学习主题</label>
+                        <input type="text" id="topic-input" placeholder="例如：Python编程入门、机器学习基础、React框架..." />
+                    </div>
+                    <div class="input-group">
+                        <label for="description-input">补充说明（可选）</label>
+                        <textarea id="description-input" placeholder="可以补充具体的学习目标、难度要求等..."></textarea>
+                    </div>
+                    <button class="btn-primary" id="generate-btn">
+                        <span class="icon">✨</span>
+                        开始生成
+                    </button>
+                </div>
+            </div>
+
+            <!-- 文章列表视图 -->
+            <div id="articles-view" class="view">
+                <div class="view-header">
+                    <h2>📝 文章列表</h2>
+                    <button class="btn-secondary" onclick="showView('home')">+ 新建文章</button>
+                </div>
+                <div id="articles-list" class="content-list">
+                    <div class="empty-state">
+                        <span class="icon">📭</span>
+                        <p>暂无文章，点击上方按钮创建</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 学习文档视图 -->
+            <div id="documents-view" class="view">
+                <div class="view-header">
+                    <h2>📖 学习文档</h2>
+                    <button class="btn-secondary" onclick="showView('home')">+ 新建文档</button>
+                </div>
+                <div id="documents-list" class="content-list">
+                    <div class="empty-state">
+                        <span class="icon">📭</span>
+                        <p>暂无学习文档，点击上方按钮创建</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文章详情视图 -->
+            <div id="article-detail-view" class="view">
+                <div class="view-header">
+                    <button class="btn-back" onclick="goBack()">← 返回</button>
+                    <h2 id="article-title"></h2>
+                </div>
+                <article id="article-content" class="article-content markdown-body"></article>
+            </div>
+
+            <!-- 文档详情视图 -->
+            <div id="document-detail-view" class="view">
+                <div class="view-header">
+                    <button class="btn-back" onclick="goBack()">← 返回</button>
+                    <h2 id="document-title"></h2>
+                </div>
+                <div class="document-layout">
+                    <nav id="document-toc" class="document-toc"></nav>
+                    <article id="document-content" class="article-content markdown-body"></article>
+                </div>
+            </div>
+
+            <!-- 设置视图 -->
+            <div id="settings-view" class="view">
+                <div class="view-header">
+                    <h2>⚙️ 系统设置</h2>
+                </div>
+                <div class="settings-section">
+                    <h3>API 配置</h3>
+                    <p class="settings-desc">配置硅基流动 API 以使用 AI 生成功能</p>
+                    
+                    <div class="input-group">
+                        <label for="api-key-input">API Key</label>
+                        <input type="password" id="api-key-input" placeholder="请输入您的硅基流动 API Key" />
+                        <small>获取 API Key: <a href="https://cloud.siliconflow.cn" target="_blank">https://cloud.siliconflow.cn</a></small>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="api-base-input">API Base URL</label>
+                        <input type="text" id="api-base-input" value="https://api.siliconflow.cn/v1" />
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="model-input">模型</label>
+                        <select id="model-input">
+                            <option value="deepseek-ai/DeepSeek-V3">DeepSeek-V3 (推荐)</option>
+                            <option value="deepseek-ai/DeepSeek-R1">DeepSeek-R1</option>
+                            <option value="Qwen/Qwen2.5-72B-Instruct">Qwen2.5-72B</option>
+                            <option value="THUDM/glm-4-9b-chat">GLM-4-9B</option>
+                        </select>
+                    </div>
+                    
+                    <div class="settings-status" id="config-status"></div>
+                    
+                    <button class="btn-primary" id="save-config-btn">
+                        <span class="icon">💾</span>
+                        保存配置
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 生成类型选择弹窗 -->
+    <div id="type-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>选择生成类型</h3>
+                <button class="modal-close" onclick="closeModal('type-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>请选择要生成的内容类型：</p>
+                <div class="type-options">
+                    <button class="type-option" id="type-article">
+                        <span class="type-icon">📝</span>
+                        <span class="type-title">生成文章</span>
+                        <span class="type-desc">生成一篇完整的学习文章，内容系统全面</span>
+                    </button>
+                    <button class="type-option" id="type-document">
+                        <span class="type-icon">📖</span>
+                        <span class="type-title">生成学习文档</span>
+                        <span class="type-desc">先生成目录大纲，确认后批量生成多篇章节</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 大纲预览弹窗 -->
+    <div id="outline-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>📋 学习目录大纲</h3>
+                <button class="modal-close" onclick="closeModal('outline-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="outline-preview" class="outline-preview"></div>
+                <div class="outline-actions">
+                    <button class="btn-secondary" id="regenerate-outline-btn">🔄 重新生成</button>
+                    <button class="btn-primary" id="confirm-outline-btn">✅ 确认并生成文档</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载状态弹窗 -->
+    <div id="loading-modal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="loading-spinner"></div>
+            <p id="loading-text">正在生成中，请稍候...</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
