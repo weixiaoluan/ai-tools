@@ -89,6 +89,7 @@ class ConfigRequest(BaseModel):
     api_key: str
     api_base: Optional[str] = "https://api.siliconflow.cn/v1"
     model: Optional[str] = "deepseek-ai/DeepSeek-V3"
+    provider: Optional[str] = "siliconflow"
 
 class OutlineUpdateRequest(BaseModel):
     outline_id: str
@@ -142,6 +143,7 @@ async def get_config():
         "api_key": "***" + api_key[-4:] if api_key else "",
         "api_base": config.get("api_base", "https://api.siliconflow.cn/v1"),
         "model": config.get("model", "deepseek-ai/DeepSeek-V3"),
+        "provider": config.get("provider", "siliconflow"),
         "configured": bool(api_key)
     }
 
@@ -150,6 +152,7 @@ async def save_config(request: ConfigRequest, user: dict = Depends(get_current_u
     db.set_config("api_key", request.api_key)
     db.set_config("api_base", request.api_base)
     db.set_config("model", request.model)
+    db.set_config("provider", request.provider)
     load_ai_config()
     return {"success": True, "message": "配置已保存"}
 
