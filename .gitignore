@@ -37,3 +37,6 @@ Thumbs.db
 
 # Nginx 配置（本地生成）
 nginx.conf
+
+# Docker
+mysql_data/
