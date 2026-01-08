@@ -1,8 +1,10 @@
 # 阶段1: 构建前端
 FROM node:18-alpine AS frontend-builder
 WORKDIR /build
+# 限制 Node 内存使用
+ENV NODE_OPTIONS="--max-old-space-size=512"
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install
+RUN npm install --prefer-offline --no-audit
 COPY frontend/src/ ./src/
 COPY frontend/vite.config.js ./
 # 直接写入 index.html 内容避免文件系统问题
