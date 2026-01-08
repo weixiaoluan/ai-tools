@@ -195,8 +195,10 @@ function goBack() { toolView.value = previousToolView.value || 'home' }
 
 function handleLogin(userData) {
   user.value = userData
+  // 保存完整的登录数据包括过期时间
   localStorage.setItem('user', JSON.stringify(userData))
   localStorage.setItem('token', userData.token)
+  localStorage.setItem('tokenExpire', userData.expireTime || (Date.now() + 30 * 24 * 60 * 60 * 1000))
   axios.defaults.headers.common['Authorization'] = `Bearer ${userData.token}`
   currentView.value = 'platform'
   checkApiStatus()
@@ -206,6 +208,7 @@ function logout() {
   user.value = null
   localStorage.removeItem('user')
   localStorage.removeItem('token')
+  localStorage.removeItem('tokenExpire')
   delete axios.defaults.headers.common['Authorization']
   currentView.value = 'login'
 }
@@ -383,16 +386,36 @@ onMounted(async () => {
   
   const savedUser = localStorage.getItem('user')
   const token = localStorage.getItem('token')
-  if (savedUser && token) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-    try {
-      await axios.get('/api/config')
-      user.value = JSON.parse(savedUser)
-      currentView.value = 'platform'
-    } catch (e) {
+  const tokenExpire = localStorage.getItem('tokenExpire')
+  
+  // 检查 token 是否过期（30天有效期）
+  if (savedUser && token && tokenExpire) {
+    const expireTime = parseInt(tokenExpire)
+    if (Date.now() < expireTime) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      try {
+        await axios.get('/api/config')
+        user.value = JSON.parse(savedUser)
+        currentView.value = 'platform'
+      } catch (e) {
+        // 只有在服务器明确返回401时才清除登录状态
+        if (e.response?.status === 401) {
+          localStorage.removeItem('user')
+          localStorage.removeItem('token')
+          localStorage.removeItem('tokenExpire')
+          delete axios.defaults.headers.common['Authorization']
+          currentView.value = 'login'
+        } else {
+          // 网络错误等情况，保持登录状态
+          user.value = JSON.parse(savedUser)
+          currentView.value = 'platform'
+        }
+      }
+    } else {
+      // token 已过期
       localStorage.removeItem('user')
       localStorage.removeItem('token')
-      delete axios.defaults.headers.common['Authorization']
+      localStorage.removeItem('tokenExpire')
       currentView.value = 'login'
     }
   } else {
