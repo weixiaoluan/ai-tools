@@ -33,6 +33,7 @@ app.add_middleware(
 )
 
 if os.path.exists("static"):
+    app.mount("/assets", StaticFiles(directory="static/assets"), name="assets")
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 内存中的任务状态（用于实时更新）
