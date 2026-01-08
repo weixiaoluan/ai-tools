@@ -72,7 +72,9 @@ const providers = {
     url: 'https://cloud.siliconflow.cn',
     baseUrl: 'https://api.siliconflow.cn/v1',
     models: [
-      { label: 'DeepSeek-V3 (推荐)', value: 'deepseek-ai/DeepSeek-V3' },
+      { label: 'DeepSeek-V3.2 (最新推荐)', value: 'deepseek-ai/DeepSeek-V3.2' },
+      { label: 'DeepSeek-V3.2 Pro', value: 'Pro/deepseek-ai/DeepSeek-V3.2' },
+      { label: 'DeepSeek-V3', value: 'deepseek-ai/DeepSeek-V3' },
       { label: 'DeepSeek-R1', value: 'deepseek-ai/DeepSeek-R1' },
       { label: 'DeepSeek-R1-Distill-Qwen-32B', value: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B' },
       { label: 'Qwen2.5-72B-Instruct', value: 'Qwen/Qwen2.5-72B-Instruct' },
