@@ -1,9 +1,11 @@
 # 阶段1: 构建前端
 FROM node:18-alpine AS frontend-builder
 WORKDIR /app/frontend
-COPY frontend/package*.json ./
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
-COPY frontend/ ./
+COPY frontend/index.html ./
+COPY frontend/vite.config.js ./
+COPY frontend/src/ ./src/
 RUN npm run build
 
 # 阶段2: 运行后端
