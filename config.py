@@ -13,13 +13,13 @@ AI_CONFIG = {
     "api_base": os.getenv("AI_API_BASE", "https://api.siliconflow.cn/v1"),
     "model": os.getenv("AI_MODEL", "deepseek-ai/DeepSeek-V3"),
     "temperature": 0.7,
-    "max_tokens": 4096
+    "max_tokens": 16384  # 增加到16K以支持更长文章
 }
 
 # 文章生成配置
 ARTICLE_CONFIG = {
     "min_words": 1500,
-    "max_words": 5000,
+    "max_words": 20000,
     "style": "professional",  # professional, beginner, advanced
 }
 

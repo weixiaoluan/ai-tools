@@ -14,6 +14,7 @@
         <label>服务提供商</label>
         <select v-model="provider" class="input-field" @change="onProviderChange">
           <option value="siliconflow">硅基流动 (SiliconFlow)</option>
+          <option value="aliyun">阿里云百炼 (DashScope)</option>
           <option value="deepseek">DeepSeek</option>
           <option value="openai">OpenAI</option>
           <option value="gemini">Google Gemini</option>
@@ -82,6 +83,22 @@ const providers = {
       { label: 'Qwen2.5-Coder-32B', value: 'Qwen/Qwen2.5-Coder-32B-Instruct' },
       { label: 'GLM-4-Plus', value: 'THUDM/GLM-4-Plus' },
       { label: 'Yi-Lightning', value: '01-ai/Yi-Lightning' }
+    ]
+  },
+  aliyun: {
+    name: '阿里云百炼',
+    url: 'https://bailian.console.aliyun.com',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    models: [
+      { label: 'DeepSeek-V3.2 685B 满血版 (推荐)', value: 'deepseek-v3.2' },
+      { label: 'DeepSeek-V3.2-Exp 685B 满血版', value: 'deepseek-v3.2-exp' },
+      { label: 'DeepSeek-V3.1 685B 满血版', value: 'deepseek-v3.1' },
+      { label: 'DeepSeek-R1 685B 满血版', value: 'deepseek-r1' },
+      { label: 'DeepSeek-R1-0528 685B 满血版', value: 'deepseek-r1-0528' },
+      { label: 'DeepSeek-V3 671B 满血版', value: 'deepseek-v3' },
+      { label: 'Qwen-Max', value: 'qwen-max' },
+      { label: 'Qwen-Plus', value: 'qwen-plus' },
+      { label: 'Qwen-Turbo', value: 'qwen-turbo' }
     ]
   },
   deepseek: {
@@ -157,7 +174,8 @@ async function loadConfig() {
     
     // 根据 baseUrl 自动识别 provider
     if (!res.data.provider) {
-      if (apiBase.value.includes('deepseek.com')) provider.value = 'deepseek'
+      if (apiBase.value.includes('dashscope.aliyuncs.com')) provider.value = 'aliyun'
+      else if (apiBase.value.includes('deepseek.com')) provider.value = 'deepseek'
       else if (apiBase.value.includes('openai.com')) provider.value = 'openai'
       else if (apiBase.value.includes('googleapis.com')) provider.value = 'gemini'
       else if (apiBase.value.includes('siliconflow.cn')) provider.value = 'siliconflow'
