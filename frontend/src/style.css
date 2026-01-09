@@ -291,6 +291,14 @@ select.input-field { cursor: pointer; }
 .modal-footer { display: flex; gap: 12px; padding: 20px 28px; border-top: 1px solid var(--border); background: var(--bg-main); }
 .modal-footer .btn { flex: 1; }
 
+/* 删除确认弹窗 */
+.modal-delete { max-width: 420px; }
+.modal-delete .modal-header { background: linear-gradient(135deg, #FEF2F2, #FEE2E2); }
+.modal-delete .modal-header h3 { color: #DC2626; }
+.delete-warning { text-align: center; padding: 20px 0; }
+.warning-icon { font-size: 48px; margin-bottom: 16px; }
+.warning-text { font-size: 15px; color: var(--text-secondary); line-height: 1.6; }
+
 /* 加载 */
 .loading-container { text-align: center; padding: 40px 20px; }
 .spinner { width: 48px; height: 48px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 24px; }

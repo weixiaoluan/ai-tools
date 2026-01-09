@@ -146,8 +146,7 @@ import PublicArticle from './components/PublicArticle.vue'
 const navItems = [
   { id: 'home', icon: '🏠', label: '首页' },
   { id: 'articles', icon: '📝', label: '文章列表' },
-  { id: 'documents', icon: '📚', label: '学习文档' },
-  { id: 'settings', icon: '⚙️', label: '系统设置' }
+  { id: 'documents', icon: '📚', label: '学习文档' }
 ]
 
 // 视图状态

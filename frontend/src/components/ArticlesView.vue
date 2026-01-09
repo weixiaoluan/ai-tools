@@ -62,13 +62,16 @@
     
     <!-- 删除确认弹窗 -->
     <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
-      <div class="modal-content">
+      <div class="modal-content modal-delete">
         <div class="modal-header">
           <h3>⚠️ 确认删除</h3>
           <button class="modal-close" @click="showDeleteModal = false">✕</button>
         </div>
         <div class="modal-body">
-          <p class="modal-desc">{{ deleteMessage }}</p>
+          <div class="delete-warning">
+            <div class="warning-icon">🗑️</div>
+            <p class="warning-text">{{ deleteMessage }}</p>
+          </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" @click="showDeleteModal = false">取消</button>
