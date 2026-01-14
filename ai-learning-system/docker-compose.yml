@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ai-tools-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ai_tools_2024}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_learning}
+      MYSQL_USER: ${MYSQL_USER:-ai_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ai_password_2024}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: ai-tools-app
+    restart: always
+    ports:
+      - "6066:6066"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER:-ai_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-ai_password_2024}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-ai_learning}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./.env:/app/.env:ro
+
+volumes:
+  mysql_data:

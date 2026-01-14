@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  
+  <!-- SEO Meta Tags -->
+  <title>LearnFlow AI - 智能学习内容生成平台</title>
+  <meta name="description" content="LearnFlow AI 是一个智能学习内容生成平台，利用AI技术为您生成系统化的学习文章和文档，助力高效学习。">
+  <meta name="keywords" content="AI学习,智能教育,内容生成,学习文档,在线学习,人工智能,教程生成">
+  <meta name="author" content="LearnFlow AI">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="/">
+  <meta property="og:title" content="LearnFlow AI - 智能学习内容生成平台">
+  <meta property="og:description" content="利用AI技术为您生成系统化的学习文章和文档，助力高效学习。">
+  <meta property="og:site_name" content="LearnFlow AI">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="LearnFlow AI - 智能学习内容生成平台">
+  <meta name="twitter:description" content="利用AI技术为您生成系统化的学习文章和文档，助力高效学习。">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%234F46E5' d='M12 2L2 7l10 5 10-5-10-5z'/><path stroke='%236366F1' stroke-width='2' fill='none' d='M2 17l10 5 10-5M2 12l10 5 10-5'/></svg>">
+  
+  <!-- Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="/">
+  
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "LearnFlow AI",
+    "description": "智能学习内容生成平台，利用AI技术为您生成系统化的学习文章和文档",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Web Browser"
+  }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

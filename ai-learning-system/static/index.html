@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI学习系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: { 900: '#0f172a', 800: '#1e293b', 700: '#334155' },
+                        primary: { 500: '#6366f1', 600: '#4f46e5', 400: '#818cf8' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); min-height: 100vh; }
+        .gradient-text { background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glass { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(99, 102, 241, 0.2); }
+        .btn-glow { box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); }
+        .btn-glow:hover { box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6); transform: translateY(-2px); }
+        .card-hover:hover { border-color: #6366f1; transform: translateY(-4px); box-shadow: 0 10px 40px rgba(99, 102, 241, 0.2); }
+        .nav-active { background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.25)); border-left: 3px solid #6366f1; }
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .spinner { border: 4px solid #334155; border-top-color: #6366f1; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .markdown-body h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 1rem; color: #f1f5f9; }
+        .markdown-body h2 { font-size: 1.5rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: #e2e8f0; border-bottom: 2px solid #334155; padding-bottom: 0.5rem; }
+        .markdown-body h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.5rem; color: #cbd5e1; }
+        .markdown-body p { margin-bottom: 1rem; color: #94a3b8; line-height: 1.8; }
+        .markdown-body ul, .markdown-body ol { margin: 1rem 0; padding-left: 1.5rem; color: #94a3b8; }
+        .markdown-body li { margin-bottom: 0.5rem; }
+        .markdown-body code { background: rgba(99, 102, 241, 0.2); padding: 0.2rem 0.5rem; border-radius: 4px; color: #a5b4fc; font-size: 0.9rem; }
+        .markdown-body pre { background: #0f172a; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; border: 1px solid #334155; }
+        .markdown-body pre code { background: none; padding: 0; color: #e2e8f0; }
+        .markdown-body blockquote { border-left: 4px solid #6366f1; padding-left: 1rem; margin: 1rem 0; color: #94a3b8; }
+        ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-track { background: #0f172a; } ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    </style>
+</head>
+<body class="text-gray-100 font-sans">
+    <div class="flex min-h-screen">
+        <!-- 侧边栏 -->
+        <aside class="w-64 bg-gray-900/50 border-r border-gray-800 p-6 flex flex-col">
+            <div class="glass rounded-2xl p-4 mb-8">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🤖</span>
+                    <div>
+                        <h1 class="text-xl font-bold gradient-text">AI学习系统</h1>
+                        <p class="text-xs text-gray-500">智能内容生成</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="flex-1 space-y-2" id="nav-menu"></nav>
+            <div class="mt-auto pt-6 border-t border-gray-800">
+                <div class="flex items-center gap-2 text-sm text-gray-500">
+                    <span class="pulse-dot w-2 h-2 rounded-full" id="status-dot"></span>
+                    <span id="api-status">检查中...</span>
+                </div>
+            </div>
+        </aside>
+        <!-- 主内容 -->
+        <main class="flex-1 p-8 overflow-y-auto" id="main-content"></main>
+    </div>
+    <!-- 弹窗容器 -->
+    <div id="modal-container"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+        // 配置
+        marked.setOptions({ highlight: (code, lang) => lang && hljs.getLanguage(lang) ? hljs.highlight(code, { language: lang }).value : hljs.highlightAuto(code).value, breaks: true });
+        
+        // 状态
+        const state = { view: 'home', prevView: 'home', topic: '', desc: '', outline: null, articles: [], documents: [] };
+        
+        // 导航配置
+        const navItems = [
+            { id: 'home', icon: '🏠', label: '首页' },
+            { id: 'articles', icon: '📝', label: '文章列表' },
+            { id: 'documents', icon: '📚', label: '学习文档' },
+            { id: 'settings', icon: '⚙️', label: '系统设置' }
+        ];
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            renderNav();
+            showView('home');
+            loadConfig();
+        });
+        
+        // 渲染导航
+        function renderNav() {
+            document.getElementById('nav-menu').innerHTML = navItems.map(item => `
+                <button onclick="showView('${item.id}')" data-view="${item.id}" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-primary-500/20 hover:text-primary-400 transition-all ${state.view === item.id ? 'nav-active text-primary-400' : ''}">
+                    <span class="text-xl">${item.icon}</span><span>${item.label}</span>
+                </button>
+            `).join('');
+        }
+        
+        // 显示视图
+        function showView(view) {
+            state.prevView = state.view;
+            state.view = view;
+            renderNav();
+            const views = { home: renderHome, articles: renderArticles, documents: renderDocuments, settings: renderSettings, 'article-detail': renderArticleDetail, 'document-detail': renderDocumentDetail };
+            if (views[view]) views[view]();
+            if (view === 'articles') loadArticles();
+            if (view === 'documents') loadDocuments();
+        }
+        
+        function goBack() { showView(state.prevView || 'home'); }
+        
+        // 首页
+        function renderHome() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="max-w-3xl mx-auto">
+                    <div class="text-center mb-12">
+                        <h2 class="text-4xl font-bold mb-4"><span class="gradient-text">✨ AI智能学习内容生成</span></h2>
+                        <p class="text-gray-400 text-lg">输入你想学习的内容，AI将为你生成系统化的学习资料</p>
+                    </div>
+                    <div class="glass rounded-2xl p-8 mb-8">
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">学习主题</label>
+                            <input type="text" id="topic-input" class="w-full px-4 py-4 bg-dark-900/60 border-2 border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-primary-500 focus:outline-none transition" placeholder="例如：Python编程入门、机器学习基础、React框架...">
+                        </div>
+                        <div class="mb-8">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">补充说明（可选）</label>
+                            <textarea id="desc-input" class="w-full px-4 py-4 h-28 bg-dark-900/60 border-2 border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-primary-500 focus:outline-none transition resize-none" placeholder="可以补充具体的学习目标、难度要求等..."></textarea>
+                        </div>
+                        <button onclick="startGenerate()" class="w-full py-4 bg-gradient-to-r from-primary-500 to-purple-500 rounded-xl text-white font-semibold text-lg btn-glow transition flex items-center justify-center gap-2">
+                            <span>🚀</span><span>开始生成</span>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="glass rounded-2xl p-6 card-hover transition cursor-pointer border border-transparent">
+                            <div class="text-3xl mb-3">📝</div>
+                            <h3 class="text-lg font-semibold text-gray-200 mb-2">单篇文章</h3>
+                            <p class="text-gray-400 text-sm">生成一篇完整的学习文章，内容系统全面</p>
+                        </div>
+                        <div class="glass rounded-2xl p-6 card-hover transition cursor-pointer border border-transparent">
+                            <div class="text-3xl mb-3">📚</div>
+                            <h3 class="text-lg font-semibold text-gray-200 mb-2">学习文档</h3>
+                            <p class="text-gray-400 text-sm">先生成目录大纲，确认后批量生成多章节</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 文章列表
+        function renderArticles() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="max-w-3xl mx-auto">
+                    <div class="flex justify-between items-center mb-8">
+                        <h2 class="text-2xl font-bold">📝 文章列表</h2>
+                        <button onclick="showView('home')" class="px-6 py-2 border-2 border-primary-500 text-primary-400 rounded-xl hover:bg-primary-500 hover:text-white transition">+ 新建文章</button>
+                    </div>
+                    <div id="articles-list" class="space-y-4"></div>
+                </div>
+            `;
+        }
+        
+        // 文档列表
+        function renderDocuments() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="max-w-3xl mx-auto">
+                    <div class="flex justify-between items-center mb-8">
+                        <h2 class="text-2xl font-bold">📚 学习文档</h2>
+                        <button onclick="showView('home')" class="px-6 py-2 border-2 border-primary-500 text-primary-400 rounded-xl hover:bg-primary-500 hover:text-white transition">+ 新建文档</button>
+                    </div>
+                    <div id="documents-list" class="space-y-4"></div>
+                </div>
+            `;
+        }
+        
+        // 设置页
+        function renderSettings() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="max-w-xl mx-auto">
+                    <h2 class="text-2xl font-bold mb-8">⚙️ 系统设置</h2>
+                    <div class="glass rounded-2xl p-8">
+                        <h3 class="text-xl font-semibold mb-2">API 配置</h3>
+                        <p class="text-gray-400 mb-6">配置硅基流动 API 以使用 AI 生成功能</p>
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">API Key</label>
+                                <input type="password" id="api-key-input" class="w-full px-4 py-3 bg-dark-900/60 border-2 border-gray-700 rounded-xl text-white placeholder-gray-500 focus:border-primary-500 focus:outline-none transition" placeholder="请输入您的硅基流动 API Key">
+                                <p class="text-gray-500 text-sm mt-2">获取: <a href="https://cloud.siliconflow.cn" target="_blank" class="text-primary-400 hover:underline">https://cloud.siliconflow.cn</a></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">API Base URL</label>
+                                <input type="text" id="api-base-input" value="https://api.siliconflow.cn/v1" class="w-full px-4 py-3 bg-dark-900/60 border-2 border-gray-700 rounded-xl text-white focus:border-primary-500 focus:outline-none transition">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-2">模型选择</label>
+                                <select id="model-input" class="w-full px-4 py-3 bg-dark-900/60 border-2 border-gray-700 rounded-xl text-white focus:border-primary-500 focus:outline-none transition">
+                                    <option value="deepseek-ai/DeepSeek-V3">DeepSeek-V3 (推荐)</option>
+                                    <option value="deepseek-ai/DeepSeek-R1">DeepSeek-R1</option>
+                                    <option value="Qwen/Qwen2.5-72B-Instruct">Qwen2.5-72B</option>
+                                </select>
+                            </div>
+                            <div id="config-status"></div>
+                            <button onclick="saveConfig()" class="w-full py-4 bg-gradient-to-r from-primary-500 to-purple-500 rounded-xl text-white font-semibold btn-glow transition flex items-center justify-center gap-2">
+                                <span>💾</span><span>保存配置</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            loadConfigToForm();
+        }
+        
+        // 文章详情
+        function renderArticleDetail() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="max-w-3xl mx-auto">
+                    <button onclick="goBack()" class="text-gray-400 hover:text-white mb-6 flex items-center gap-2">← 返回列表</button>
+                    <div class="glass rounded-2xl p-8">
+                        <h1 id="article-title" class="text-3xl font-bold mb-6 pb-4 border-b border-gray-700"></h1>
+                        <article id="article-content" class="markdown-body"></article>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 文档详情
+        function renderDocumentDetail() {
+            document.getElementById('main-content').innerHTML = `
+                <div class="max-w-5xl mx-auto">
+                    <button onclick="goBack()" class="text-gray-400 hover:text-white mb-6 flex items-center gap-2">← 返回列表</button>
+                    <div class="flex gap-8">
+                        <nav id="doc-toc" class="w-56 flex-shrink-0 glass rounded-2xl p-6 sticky top-8 max-h-[80vh] overflow-y-auto"></nav>
+                        <div class="flex-1 glass rounded-2xl p-8">
+                            <h1 id="doc-title" class="text-3xl font-bold mb-6 pb-4 border-b border-gray-700"></h1>
+                            <article id="doc-content" class="markdown-body"></article>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 弹窗
+        function showModal(content) {
+            document.getElementById('modal-container').innerHTML = `
+                <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50" onclick="if(event.target===this)closeModal()">
+                    <div class="bg-gradient-to-br from-dark-800 to-dark-900 border border-primary-500/30 rounded-2xl p-8 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        ${content}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showLargeModal(content) {
+            document.getElementById('modal-container').innerHTML = `
+                <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50" onclick="if(event.target===this)closeModal()">
+                    <div class="bg-gradient-to-br from-dark-800 to-dark-900 border border-primary-500/30 rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        ${content}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+        
+        function showLoading(text) {
+            showModal(`
+                <div class="text-center py-8">
+                    <div class="spinner w-12 h-12 rounded-full mx-auto mb-6"></div>
+                    <p class="text-lg text-gray-200">${text}</p>
+                    <p class="text-sm text-gray-500 mt-2">AI正在努力工作中 ✨</p>
+                </div>
+            `);
+        }
+        
+        // 开始生成
+        function startGenerate() {
+            const topic = document.getElementById('topic-input').value.trim();
+            if (!topic) { alert('请输入学习主题'); return; }
+            state.topic = topic;
+            state.desc = document.getElementById('desc-input')?.value.trim() || '';
+            showModal(`
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold">选择生成类型</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+                <p class="text-gray-400 mb-6">请选择要生成的内容类型：</p>
+                <div class="space-y-4">
+                    <button onclick="generateArticle()" class="w-full p-5 bg-dark-900/60 border-2 border-gray-700 rounded-xl hover:border-primary-500 hover:bg-primary-500/10 transition text-left flex items-center gap-4">
+                        <span class="text-4xl">📝</span>
+                        <div><div class="font-semibold text-gray-200">生成文章</div><div class="text-sm text-gray-400">生成一篇完整的学习文章</div></div>
+                    </button>
+                    <button onclick="generateOutline()" class="w-full p-5 bg-dark-900/60 border-2 border-gray-700 rounded-xl hover:border-primary-500 hover:bg-primary-500/10 transition text-left flex items-center gap-4">
+                        <span class="text-4xl">📚</span>
+                        <div><div class="font-semibold text-gray-200">生成学习文档</div><div class="text-sm text-gray-400">先生成目录，确认后批量生成</div></div>
+                    </button>
+                </div>
+            `);
+        }
+        
+        // API: 生成文章
+        async function generateArticle() {
+            showLoading('正在生成文章...');
+            try {
+                const res = await fetch('/api/generate/article', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: state.topic, description: state.desc })
+                });
+                const data = await res.json();
+                closeModal();
+                if (data.success) {
+                    state.currentArticle = data.article;
+                    showView('article-detail');
+                    document.getElementById('article-title').textContent = data.article.title;
+                    document.getElementById('article-content').innerHTML = marked.parse(data.article.content);
+                } else { alert(data.detail || '生成失败'); }
+            } catch (e) { closeModal(); alert('网络错误: ' + e.message); }
+        }
+        
+        // API: 生成大纲
+        async function generateOutline() {
+            showLoading('正在生成学习目录...');
+            try {
+                const res = await fetch('/api/generate/outline', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: state.topic, description: state.desc })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    state.outline = data.outline;
+                    showOutlineModal(data.outline);
+                } else { closeModal(); alert(data.detail || '生成失败'); }
+            } catch (e) { closeModal(); alert('网络错误: ' + e.message); }
+        }
+        
+        function showOutlineModal(outline) {
+            const chaptersHtml = outline.chapters.map(ch => `
+                <div class="flex gap-3 p-3 bg-dark-900/60 border border-gray-700 rounded-lg mb-2 hover:border-primary-500 transition">
+                    <span class="w-7 h-7 bg-gradient-to-r from-primary-500 to-purple-500 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">${ch.id}</span>
+                    <div><div class="font-medium text-gray-200">${ch.title}</div><div class="text-sm text-gray-400">${ch.description || ''}</div></div>
+                </div>
+            `).join('');
+            showLargeModal(`
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold">📋 学习目录大纲</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+                <div class="bg-dark-900/60 rounded-xl p-5 mb-6">
+                    <h4 class="text-lg font-semibold mb-2">${outline.title}</h4>
+                    <p class="text-gray-400 text-sm mb-4">${outline.description}</p>
+                    <div>${chaptersHtml}</div>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="regenerateOutline()" class="flex-1 py-3 border-2 border-primary-500 text-primary-400 rounded-xl hover:bg-primary-500 hover:text-white transition">🔄 重新生成</button>
+                    <button onclick="generateDocument()" class="flex-1 py-3 bg-gradient-to-r from-primary-500 to-purple-500 rounded-xl text-white font-semibold btn-glow transition">✅ 确认生成</button>
+                </div>
+            `);
+        }
+        
+        // API: 重新生成大纲
+        async function regenerateOutline() {
+            const feedback = prompt('请输入修改建议（可选）：') || '';
+            showLoading('正在重新生成目录...');
+            try {
+                const res = await fetch('/api/regenerate/outline', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ outline_id: state.outline.id, feedback })
+                });
+                const data = await res.json();
+                if (data.success) { state.outline = data.outline; showOutlineModal(data.outline); }
+                else { closeModal(); alert(data.detail || '重新生成失败'); }
+            } catch (e) { closeModal(); alert('网络错误: ' + e.message); }
+        }
+        
+        // API: 生成文档
+        async function generateDocument() {
+            showLoading('正在批量生成文档章节，请稍候...');
+            try {
+                const res = await fetch('/api/generate/document', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ outline_id: state.outline.id })
+                });
+                const data = await res.json();
+                closeModal();
+                if (data.success) {
+                    state.currentDoc = data.document;
+                    showView('document-detail');
+                    document.getElementById('doc-title').textContent = data.document.title;
+                    document.getElementById('doc-toc').innerHTML = `<h4 class="text-sm font-semibold text-gray-400 uppercase mb-4">目录</h4>` +
+                        data.document.chapters.map(ch => `<a onclick="scrollTo('ch-${ch.id}')" class="block px-3 py-2 text-sm text-gray-400 hover:text-primary-400 hover:bg-primary-500/20 rounded-lg cursor-pointer transition">${ch.id}. ${ch.title}</a>`).join('');
+                    document.getElementById('doc-content').innerHTML = data.document.chapters.map(ch => `<section id="ch-${ch.id}">${marked.parse(ch.content)}</section><hr class="my-10 border-gray-700">`).join('');
+                } else { alert(data.detail || '生成失败'); }
+            } catch (e) { closeModal(); alert('网络错误: ' + e.message); }
+        }
+        
+        function scrollTo(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }
+        
+        // 加载文章列表
+        async function loadArticles() {
+            try {
+                const res = await fetch('/api/articles');
+                const data = await res.json();
+                state.articles = data.articles || [];
+                const el = document.getElementById('articles-list');
+                if (!el) return;
+                if (state.articles.length === 0) {
+                    el.innerHTML = '<div class="text-center py-16 text-gray-500"><span class="text-5xl block mb-4">📭</span>暂无文章，点击上方按钮创建</div>';
+                } else {
+                    el.innerHTML = state.articles.map(a => `
+                        <div onclick="viewArticle('${a.id}')" class="glass rounded-xl p-6 cursor-pointer border border-transparent card-hover transition">
+                            <h3 class="text-lg font-semibold text-gray-200 mb-2">${a.title}</h3>
+                            <p class="text-gray-400 text-sm mb-4">${a.topic}</p>
+                            <div class="flex gap-4 text-sm text-gray-500">
+                                <span class="px-3 py-1 bg-primary-500/20 border border-primary-500/30 rounded-full text-primary-400">${a.type === 'chapter' ? '章节' : '文章'}</span>
+                                <span>📅 ${formatDate(a.created_at)}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        // 加载文档列表
+        async function loadDocuments() {
+            try {
+                const res = await fetch('/api/documents');
+                const data = await res.json();
+                state.documents = data.documents || [];
+                const el = document.getElementById('documents-list');
+                if (!el) return;
+                if (state.documents.length === 0) {
+                    el.innerHTML = '<div class="text-center py-16 text-gray-500"><span class="text-5xl block mb-4">📭</span>暂无学习文档，点击上方按钮创建</div>';
+                } else {
+                    el.innerHTML = state.documents.map(d => `
+                        <div onclick="viewDocument('${d.id}')" class="glass rounded-xl p-6 cursor-pointer border border-transparent card-hover transition">
+                            <h3 class="text-lg font-semibold text-gray-200 mb-2">${d.title}</h3>
+                            <p class="text-gray-400 text-sm mb-4">${d.description}</p>
+                            <div class="flex gap-4 text-sm text-gray-500">
+                                <span class="px-3 py-1 bg-primary-500/20 border border-primary-500/30 rounded-full text-primary-400">学习文档</span>
+                                <span>📚 ${d.chapters?.length || 0} 章节</span>
+                                <span>📅 ${formatDate(d.created_at)}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        // 查看文章
+        async function viewArticle(id) {
+            try {
+                const res = await fetch(`/api/articles/${id}`);
+                const data = await res.json();
+                if (data.article) {
+                    state.currentArticle = data.article;
+                    showView('article-detail');
+                    document.getElementById('article-title').textContent = data.article.title;
+                    document.getElementById('article-content').innerHTML = marked.parse(data.article.content);
+                }
+            } catch (e) { alert('加载失败'); }
+        }
+        
+        // 查看文档
+        async function viewDocument(id) {
+            try {
+                const res = await fetch(`/api/documents/${id}`);
+                const data = await res.json();
+                if (data.document) {
+                    state.currentDoc = data.document;
+                    showView('document-detail');
+                    document.getElementById('doc-title').textContent = data.document.title;
+                    document.getElementById('doc-toc').innerHTML = `<h4 class="text-sm font-semibold text-gray-400 uppercase mb-4">目录</h4>` +
+                        data.document.chapters.map(ch => `<a onclick="scrollTo('ch-${ch.id}')" class="block px-3 py-2 text-sm text-gray-400 hover:text-primary-400 hover:bg-primary-500/20 rounded-lg cursor-pointer transition">${ch.id}. ${ch.title}</a>`).join('');
+                    document.getElementById('doc-content').innerHTML = data.document.chapters.map(ch => `<section id="ch-${ch.id}">${marked.parse(ch.content)}</section><hr class="my-10 border-gray-700">`).join('');
+                }
+            } catch (e) { alert('加载失败'); }
+        }
+        
+        function formatDate(str) {
+            if (!str) return '';
+            return new Date(str).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+        
+        // 配置相关
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                const dot = document.getElementById('status-dot');
+                const status = document.getElementById('api-status');
+                if (data.configured) {
+                    dot.style.background = '#10b981';
+                    status.textContent = 'API 已配置';
+                } else {
+                    dot.style.background = '#f59e0b';
+                    status.textContent = '未配置API';
+                }
+            } catch (e) {
+                document.getElementById('status-dot').style.background = '#ef4444';
+                document.getElementById('api-status').textContent = '连接失败';
+            }
+        }
+        
+        async function loadConfigToForm() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                if (data.api_key) document.getElementById('api-key-input').placeholder = `当前: ${data.api_key}`;
+                document.getElementById('api-base-input').value = data.api_base || 'https://api.siliconflow.cn/v1';
+                document.getElementById('model-input').value = data.model || 'deepseek-ai/DeepSeek-V3';
+                const statusEl = document.getElementById('config-status');
+                if (data.configured) {
+                    statusEl.innerHTML = '<div class="px-4 py-3 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400">✅ API 已配置，可以开始使用</div>';
+                } else {
+                    statusEl.innerHTML = '<div class="px-4 py-3 bg-yellow-500/20 border border-yellow-500/30 rounded-xl text-yellow-400">⚠️ 请配置 API Key 后使用</div>';
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        async function saveConfig() {
+            const apiKey = document.getElementById('api-key-input').value.trim();
+            const apiBase = document.getElementById('api-base-input').value.trim();
+            const model = document.getElementById('model-input').value;
+            const statusEl = document.getElementById('config-status');
+            
+            if (!apiKey) {
+                statusEl.innerHTML = '<div class="px-4 py-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400">❌ 请输入 API Key</div>';
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/config', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_key: apiKey, api_base: apiBase, model })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    statusEl.innerHTML = '<div class="px-4 py-3 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400">✅ 配置保存成功！</div>';
+                    document.getElementById('api-key-input').value = '';
+                    document.getElementById('api-key-input').placeholder = `当前: ***${apiKey.slice(-4)}`;
+                    document.getElementById('status-dot').style.background = '#10b981';
+                    document.getElementById('api-status').textContent = 'API 已配置';
+                } else {
+                    statusEl.innerHTML = `<div class="px-4 py-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400">❌ 保存失败</div>`;
+                }
+            } catch (e) {
+                statusEl.innerHTML = `<div class="px-4 py-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400">❌ 网络错误</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
