@@ -2,9 +2,9 @@
 LearnFlow AI - 智能学习内容生成平台
 FastAPI后端服务
 """
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -14,6 +14,7 @@ import json
 import os
 import hashlib
 import threading
+import httpx
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -111,6 +112,10 @@ class SaveNoteRequest(BaseModel):
     article_id: str
     question: str
     answer: str
+
+class ChatRequest(BaseModel):
+    message: str
+    history: Optional[List[dict]] = []
 
 # ========== 认证接口 ==========
 @app.post("/api/auth/register")
@@ -518,6 +523,57 @@ async def save_note(request: SaveNoteRequest, user: dict = Depends(get_current_u
 async def delete_note(note_id: int, user: dict = Depends(get_current_user)):
     db.delete_note(note_id, user["username"])
     return {"success": True}
+
+# ========== AI对话接口（流式） ==========
+@app.post("/api/chat/stream")
+async def chat_stream(request: ChatRequest, user: dict = Depends(get_current_user)):
+    load_ai_config()
+    if not AI_CONFIG.get("api_key"):
+        raise HTTPException(status_code=400, detail="请先配置API Key")
+    
+    async def generate():
+        try:
+            messages = [{"role": "system", "content": "你是一个智能AI助手，能够回答各种问题，提供有帮助的信息。回答要准确、清晰、有条理。"}]
+            
+            for h in request.history[-10:]:
+                messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
+            
+            messages.append({"role": "user", "content": request.message})
+            
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream(
+                    "POST",
+                    f"{AI_CONFIG['api_base'].rstrip('/')}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {AI_CONFIG['api_key']}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": AI_CONFIG["model"],
+                        "messages": messages,
+                        "stream": True,
+                        "temperature": 0.7,
+                        "max_tokens": 4096
+                    }
+                ) as response:
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            data = line[6:]
+                            if data == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(data)
+                                if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
+                                    content = chunk["choices"][0]["delta"]["content"]
+                                    yield f"data: {json.dumps({'content': content})}\n\n"
+                            except:
+                                pass
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        
+        yield "data: [DONE]\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 if __name__ == "__main__":
     import uvicorn

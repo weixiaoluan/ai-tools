@@ -10,6 +10,9 @@
     <!-- 平台首页 -->
     <PlatformHome v-else-if="currentView === 'platform'" :user="user" @enter-tool="enterTool" @logout="logout" />
     
+    <!-- AI对话页面 -->
+    <ChatView v-else-if="currentView === 'chat'" @back="currentView = 'platform'" />
+    
     <!-- LearnFlow 工具主界面 -->
     <div v-else class="app-container">
       <!-- 移动端菜单按钮 -->
@@ -142,6 +145,7 @@ import DocumentDetail from './components/DocumentDetail.vue'
 import LoginView from './components/LoginView.vue'
 import RegisterView from './components/RegisterView.vue'
 import PublicArticle from './components/PublicArticle.vue'
+import ChatView from './components/ChatView.vue'
 
 const navItems = [
   { id: 'home', icon: '🏠', label: '首页' },
@@ -217,6 +221,8 @@ function enterTool(toolName) {
     currentView.value = 'learnflow'
     toolView.value = 'home'
     restoreRunningTasks()
+  } else if (toolName === 'chat') {
+    currentView.value = 'chat'
   }
 }
 

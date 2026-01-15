@@ -74,33 +74,20 @@
             <button class="btn btn-primary btn-block">进入工具 →</button>
           </div>
 
-          <!-- 更多工具占位 -->
-          <div class="tool-card disabled">
-            <div class="tool-header">
-              <div class="tool-icon">🎨</div>
-              <span class="tool-badge soon">即将上线</span>
-            </div>
-            <h3>AI 绘图</h3>
-            <p>文字描述生成精美图片，释放您的创意想象</p>
-            <div class="tool-features">
-              <span>✓ 多种风格</span>
-              <span>✓ 高清输出</span>
-            </div>
-            <button class="btn btn-secondary btn-block" disabled>敬请期待</button>
-          </div>
-
-          <div class="tool-card disabled">
+          <!-- AI对话 -->
+          <div class="tool-card featured" @click="enterChat">
             <div class="tool-header">
               <div class="tool-icon">💬</div>
-              <span class="tool-badge soon">即将上线</span>
+              <span class="tool-badge hot">热门</span>
             </div>
             <h3>AI 对话</h3>
             <p>智能对话助手，解答各类问题与疑惑</p>
             <div class="tool-features">
               <span>✓ 多轮对话</span>
               <span>✓ 知识问答</span>
+              <span>✓ 流式输出</span>
             </div>
-            <button class="btn btn-secondary btn-block" disabled>敬请期待</button>
+            <button class="btn btn-primary btn-block">进入工具 →</button>
           </div>
         </div>
       </div>
@@ -294,6 +281,16 @@ function enterLearnFlow() {
     return
   }
   emit('enter-tool', 'learnflow')
+}
+
+function enterChat() {
+  if (!apiConfigured.value) {
+    showSettings.value = true
+    statusMessage.value = '⚠️ 请先配置 API Key 才能使用工具'
+    statusType.value = 'warning'
+    return
+  }
+  emit('enter-tool', 'chat')
 }
 
 async function loadConfig() {
