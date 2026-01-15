@@ -18,6 +18,7 @@
           <option value="deepseek">DeepSeek</option>
           <option value="openai">OpenAI</option>
           <option value="gemini">Google Gemini</option>
+          <option value="xinliu">心流 (iFlow)</option>
           <option value="custom">自定义</option>
         </select>
       </div>
@@ -138,6 +139,24 @@ const providers = {
       { label: 'Gemini 1.5 Flash-8B', value: 'gemini-1.5-flash-8b' }
     ]
   },
+  xinliu: {
+    name: '心流 (iFlow)',
+    url: 'https://iflow.cn',
+    baseUrl: 'https://apis.iflow.cn/v1',
+    models: [
+      { label: 'GLM-4.6 (推荐)', value: 'glm-4.6' },
+      { label: 'iFlow Rome 30B', value: 'iflow-rome-30ba3b' },
+      { label: 'Qwen3 Coder Plus', value: 'qwen3-coder-plus' },
+      { label: 'Qwen3 Max', value: 'qwen3-max' },
+      { label: 'Qwen3 VL Plus', value: 'qwen3-vl-plus' },
+      { label: 'Qwen3 Max Preview', value: 'qwen3-max-preview' },
+      { label: 'Kimi K2 0905', value: 'kimi-k2-0905' },
+      { label: 'Kimi K2', value: 'kimi-k2' },
+      { label: 'DeepSeek-V3.2', value: 'deepseek-v3.2' },
+      { label: 'DeepSeek-R1', value: 'deepseek-r1' },
+      { label: 'DeepSeek-V3', value: 'deepseek-v3' }
+    ]
+  },
   custom: {
     name: '自定义',
     url: '',
@@ -179,6 +198,7 @@ async function loadConfig() {
       else if (apiBase.value.includes('openai.com')) provider.value = 'openai'
       else if (apiBase.value.includes('googleapis.com')) provider.value = 'gemini'
       else if (apiBase.value.includes('siliconflow.cn')) provider.value = 'siliconflow'
+      else if (apiBase.value.includes('iflow.cn')) provider.value = 'xinliu'
       else provider.value = 'custom'
     }
     
