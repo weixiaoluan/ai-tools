@@ -282,3 +282,141 @@ class ArticleAgent(BaseAgent):
             "topic_type": topic_type,
             "word_count": len(content)
         }
+### 2.3 [要点3]
+[详细内容]
+
+## 3. 深入分析
+[更深层次的探讨]
+
+## 4. 实际应用/案例
+[具体的例子或应用场景]
+
+## 5. 总结
+[核心要点回顾]"""
+        }
+        
+        return templates.get(topic_type, templates['general'])
+    
+    def _generate_image_prompt(self, topic: str, section: str = "") -> str:
+        """
+        根据主题生成图片提示词
+        """
+        prompt = f"""为文章「{topic}」生成一张配图。
+{f'图片用于章节：{section}' if section else ''}
+
+要求：
+1. 图片风格：现代、专业、高质量
+2. 适合作为文章配图
+3. 不包含文字
+4. 色彩和谐，视觉效果好
+
+直接返回英文的图片描述提示词，不超过100个单词。"""
+        
+        return self.chat(prompt, temperature=0.8)
+    
+    def _generate_image(self, prompt: str) -> str:
+        """
+        调用图片生成API生成图片
+        返回图片URL
+        """
+        try:
+            # 使用 SiliconFlow 的图片生成 API
+            api_key = AI_CONFIG.get("api_key", "")
+            if not api_key:
+                return ""
+            
+            response = requests.post(
+                "https://api.siliconflow.cn/v1/images/generations",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "black-forest-labs/FLUX.1-schnell",
+                    "prompt": prompt,
+                    "image_size": "1024x576",
+                    "num_inference_steps": 20
+                },
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("images") and len(data["images"]) > 0:
+                    return data["images"][0].get("url", "")
+            return ""
+        except Exception as e:
+            print(f"图片生成失败: {e}")
+            return ""
+    
+    def generate_article(self, topic: str, description: str = "", extra_context: str = "", generate_images: bool = True) -> dict:
+        """
+        生成完整的学习文章
+        
+        Args:
+            topic: 文章主题
+            description: 补充描述
+            extra_context: 额外的参考资料
+            generate_images: 是否生成配图
+            
+        Returns:
+            包含标题和内容的字典
+        """
+        # 检测主题类型
+        topic_type = self._detect_topic_type(topic, description)
+        template = self._get_prompt_template(topic_type)
+        
+        context_section = ""
+        if extra_context:
+            context_section = f"\n\n【参考资料】\n{extra_context[:3000]}\n"
+
+        prompt = f"""撰写一篇关于「{topic}」的文章。{f' 补充要求：{description}' if description else ''}{context_section}
+
+{template}
+
+【重要提醒】
+1. 严格根据主题类型调整内容，不要生搬硬套模板
+2. 如果主题与技术/编程无关，绝对不要包含代码示例
+3. 文章要有深度和广度，字数3000-5000字
+4. 内容要真实、准确、有价值
+5. 在适合插入图片的位置，使用 ![图片描述](IMAGE_PLACEHOLDER_N) 格式标记，N为序号
+
+直接输出文章内容，使用Markdown格式。"""
+
+        content = self.chat(prompt, temperature=0.7)
+        
+        # 生成配图
+        if generate_images:
+            # 查找所有图片占位符
+            image_placeholders = re.findall(r'!\[([^\]]*)\]\(IMAGE_PLACEHOLDER_(\d+)\)', content)
+            
+            for desc, idx in image_placeholders:
+                # 生成图片提示词
+                image_prompt = self._generate_image_prompt(topic, desc)
+                # 生成图片
+                image_url = self._generate_image(image_prompt)
+                
+                if image_url:
+                    # 替换占位符为实际图片URL
+                    content = content.replace(
+                        f'![{desc}](IMAGE_PLACEHOLDER_{idx})',
+                        f'![{desc}]({image_url})'
+                    )
+                else:
+                    # 如果生成失败，移除占位符
+                    content = content.replace(f'![{desc}](IMAGE_PLACEHOLDER_{idx})\n', '')
+                    content = content.replace(f'![{desc}](IMAGE_PLACEHOLDER_{idx})', '')
+        
+        # 提取标题
+        lines = content.strip().split('\n')
+        title = topic
+        if lines and lines[0].startswith('#'):
+            title = lines[0].lstrip('#').strip()
+        
+        return {
+            "title": title,
+            "content": content,
+            "topic": topic,
+            "topic_type": topic_type,
+            "word_count": len(content)
+        }
