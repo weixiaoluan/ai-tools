@@ -101,7 +101,7 @@
           <textarea 
             v-model="inputText" 
             @keydown.enter.exact.prevent="sendMessage"
-            placeholder="输入消息... (输入"生成图片:描述"可生成图片)"
+            placeholder="输入消息... (输入 生成图片:描述 可生成图片)"
             rows="1"
             ref="inputRef"
           ></textarea>
@@ -111,7 +111,7 @@
             </svg>
           </button>
         </div>
-        <p class="footer-hint">按 Enter 发送 | 输入"生成图片:描述"可生成图片</p>
+        <p class="footer-hint">按 Enter 发送 | 输入 生成图片:描述 可生成图片</p>
       </footer>
     </div>
 
