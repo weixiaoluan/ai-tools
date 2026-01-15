@@ -113,10 +113,6 @@ class SaveNoteRequest(BaseModel):
     question: str
     answer: str
 
-class ChatRequest(BaseModel):
-    message: str
-    history: Optional[List[dict]] = []
-
 # ========== 认证接口 ==========
 @app.post("/api/auth/register")
 async def register(request: UserRegister):
@@ -525,6 +521,14 @@ async def delete_note(note_id: int, user: dict = Depends(get_current_user)):
     return {"success": True}
 
 # ========== AI对话接口（流式） ==========
+class ChatRequest(BaseModel):
+    message: str
+    history: Optional[List[dict]] = []
+    conversation_id: Optional[str] = None
+
+class ImageGenRequest(BaseModel):
+    prompt: str
+
 @app.post("/api/chat/stream")
 async def chat_stream(request: ChatRequest, user: dict = Depends(get_current_user)):
     load_ai_config()
@@ -533,7 +537,7 @@ async def chat_stream(request: ChatRequest, user: dict = Depends(get_current_use
     
     async def generate():
         try:
-            messages = [{"role": "system", "content": "你是一个智能AI助手，能够回答各种问题，提供有帮助的信息。回答要准确、清晰、有条理。"}]
+            messages = [{"role": "system", "content": "你是一个智能AI助手，能够回答各种问题，提供有帮助的信息。回答要准确、清晰、有条理。如果用户要求生成图片，请回复：[生成图片: 图片描述]，其中图片描述用英文。"}]
             
             for h in request.history[-10:]:
                 messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
@@ -556,6 +560,11 @@ async def chat_stream(request: ChatRequest, user: dict = Depends(get_current_use
                         "max_tokens": 4096
                     }
                 ) as response:
+                    if response.status_code != 200:
+                        error_text = await response.aread()
+                        yield f"data: {json.dumps({'error': f'API错误: {response.status_code}'})}\n\n"
+                        return
+                    
                     async for line in response.aiter_lines():
                         if line.startswith("data: "):
                             data = line[6:]
@@ -563,17 +572,91 @@ async def chat_stream(request: ChatRequest, user: dict = Depends(get_current_use
                                 break
                             try:
                                 chunk = json.loads(data)
-                                if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
-                                    content = chunk["choices"][0]["delta"]["content"]
-                                    yield f"data: {json.dumps({'content': content})}\n\n"
-                            except:
+                                if chunk.get("choices") and len(chunk["choices"]) > 0:
+                                    delta = chunk["choices"][0].get("delta", {})
+                                    content = delta.get("content", "")
+                                    if content:
+                                        yield f"data: {json.dumps({'content': content})}\n\n"
+                            except json.JSONDecodeError:
                                 pass
+        except httpx.TimeoutException:
+            yield f"data: {json.dumps({'error': '请求超时，请重试'})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
         
         yield "data: [DONE]\n\n"
     
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+@app.post("/api/chat/image")
+async def generate_chat_image(request: ImageGenRequest, user: dict = Depends(get_current_user)):
+    load_ai_config()
+    if not AI_CONFIG.get("api_key"):
+        raise HTTPException(status_code=400, detail="请先配置API Key")
+    
+    try:
+        base_url = AI_CONFIG.get("api_base", "https://api.siliconflow.cn/v1")
+        
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            response = await client.post(
+                f"{base_url.rstrip('/')}/images/generations",
+                headers={
+                    "Authorization": f"Bearer {AI_CONFIG['api_key']}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "black-forest-labs/FLUX.1-schnell",
+                    "prompt": request.prompt,
+                    "image_size": "1024x576",
+                    "num_inference_steps": 20
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("images") and len(data["images"]) > 0:
+                    return {"success": True, "url": data["images"][0].get("url", "")}
+                if data.get("data") and len(data["data"]) > 0:
+                    return {"success": True, "url": data["data"][0].get("url", "")}
+            
+            return {"success": False, "error": "图片生成失败"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+# ========== 聊天记录接口 ==========
+@app.get("/api/conversations")
+async def list_conversations(user: dict = Depends(get_current_user)):
+    conversations = db.get_conversations(user["username"])
+    return {"conversations": conversations}
+
+@app.post("/api/conversations")
+async def create_conversation(user: dict = Depends(get_current_user)):
+    conv_id = str(uuid.uuid4())[:8]
+    db.create_conversation(conv_id, user["username"])
+    return {"success": True, "conversation_id": conv_id}
+
+@app.get("/api/conversations/{conv_id}")
+async def get_conversation(conv_id: str, user: dict = Depends(get_current_user)):
+    conv = db.get_conversation(conv_id, user["username"])
+    if not conv:
+        raise HTTPException(status_code=404, detail="对话不存在")
+    return {"conversation": conv}
+
+@app.put("/api/conversations/{conv_id}")
+async def update_conversation(conv_id: str, request: dict, user: dict = Depends(get_current_user)):
+    db.update_conversation(conv_id, request.get("messages", []), request.get("title", ""))
+    return {"success": True}
+
+@app.delete("/api/conversations/{conv_id}")
+async def delete_conversation(conv_id: str, user: dict = Depends(get_current_user)):
+    db.delete_conversation(conv_id, user["username"])
+    return {"success": True}
+
+@app.post("/api/conversations/batch-delete")
+async def batch_delete_conversations(request: BatchDeleteRequest, user: dict = Depends(get_current_user)):
+    for conv_id in request.ids:
+        db.delete_conversation(conv_id, user["username"])
+    return {"success": True, "deleted": len(request.ids)}
 
 if __name__ == "__main__":
     import uvicorn

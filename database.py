@@ -162,6 +162,19 @@ def init_db():
                 value TEXT
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ''')
+        
+        # 对话记录表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS conversations (
+                id VARCHAR(50) PRIMARY KEY,
+                title VARCHAR(500) DEFAULT '新对话',
+                messages LONGTEXT,
+                user VARCHAR(100) NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_user (user)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ''')
 
 # ========== 用户操作 ==========
 def get_user(username):
@@ -361,6 +374,40 @@ def get_all_config():
     with get_db_cursor() as cursor:
         cursor.execute('SELECT * FROM config')
         return {row['key']: row['value'] for row in cursor.fetchall()}
+
+# ========== 对话记录操作 ==========
+def get_conversations(user):
+    with get_db_cursor() as cursor:
+        cursor.execute('SELECT id, title, created_at, updated_at FROM conversations WHERE user = %s ORDER BY updated_at DESC', (user,))
+        return cursor.fetchall()
+
+def get_conversation(conv_id, user):
+    with get_db_cursor() as cursor:
+        cursor.execute('SELECT * FROM conversations WHERE id = %s AND user = %s', (conv_id, user))
+        row = cursor.fetchone()
+        if row:
+            row['messages'] = json.loads(row['messages']) if row['messages'] else []
+        return row
+
+def create_conversation(conv_id, user, title='新对话'):
+    with get_db_cursor() as cursor:
+        cursor.execute('''
+            INSERT INTO conversations (id, title, messages, user, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (conv_id, title, '[]', user, datetime.now(), datetime.now()))
+
+def update_conversation(conv_id, messages, title=None):
+    with get_db_cursor() as cursor:
+        if title:
+            cursor.execute('UPDATE conversations SET messages = %s, title = %s, updated_at = %s WHERE id = %s',
+                          (json.dumps(messages, ensure_ascii=False), title, datetime.now(), conv_id))
+        else:
+            cursor.execute('UPDATE conversations SET messages = %s, updated_at = %s WHERE id = %s',
+                          (json.dumps(messages, ensure_ascii=False), datetime.now(), conv_id))
+
+def delete_conversation(conv_id, user):
+    with get_db_cursor() as cursor:
+        cursor.execute('DELETE FROM conversations WHERE id = %s AND user = %s', (conv_id, user))
 
 # 初始化数据库
 try:
