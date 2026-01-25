@@ -557,13 +557,30 @@ onMounted(loadArticles)
 
 /* 响应式 - 手机 */
 @media (max-width: 480px) {
+  /* 全局重置 - 移除所有横线 */
+  .content-card,
+  .content-card *,
+  .card-content,
+  .card-content * {
+    text-decoration: none !important;
+    -webkit-text-decoration: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+  }
+  
   .content-card {
     padding: 14px;
     flex-wrap: wrap;
   }
   
   .content-card::before,
-  .content-card::after {
+  .content-card::after,
+  .card-content::before,
+  .card-content::after,
+  .card-content h3::before,
+  .card-content h3::after,
+  .card-content p::before,
+  .card-content p::after {
     display: none !important;
     content: none !important;
   }
@@ -577,13 +594,6 @@ onMounted(loadArticles)
     background: none !important;
     background-image: none !important;
     -webkit-text-decoration: none !important;
-    position: relative;
-  }
-  
-  .card-content h3::before,
-  .card-content h3::after {
-    display: none !important;
-    content: none !important;
   }
   
   .checkbox-wrapper {
