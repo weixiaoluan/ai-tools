@@ -30,6 +30,30 @@
           <span class="tag">{{ article?.type === 'chapter' ? '章节' : '文章' }}</span>
         </div>
         <div class="markdown-body" ref="contentRef" v-html="renderedContent"></div>
+        
+        <!-- 文章末尾操作栏 -->
+        <div class="article-footer-actions">
+          <button class="footer-action-btn interview-btn" @click="showInterviewPanel = true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+            </svg>
+            <span>面试题</span>
+            <span v-if="interviewQuestions.length > 0" class="action-badge">{{ interviewQuestions.length }}</span>
+          </button>
+          <button class="footer-action-btn" @click="showNotesPanel = true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+            </svg>
+            <span>笔记</span>
+            <span v-if="notes.length > 0" class="action-badge">{{ notes.length }}</span>
+          </button>
+          <button class="footer-action-btn" @click="showSharePanel = true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
+            </svg>
+            <span>分享</span>
+          </button>
+        </div>
       </div>
     </div>
     
@@ -78,24 +102,77 @@
     </div>
     
     <!-- 遮罩 -->
-    <div v-if="showAiPanel || tocOpen || showSharePanel || showNotesPanel" class="panel-overlay" @click="showAiPanel = false; tocOpen = false; showSharePanel = false; showNotesPanel = false"></div>
+    <div v-if="showAiPanel || tocOpen || showSharePanel || showNotesPanel || showInterviewPanel" class="panel-overlay" @click="closeAllPanels"></div>
     
-    <!-- 底部操作栏 -->
-    <div class="article-bottom-bar">
-      <button class="bottom-action" @click="showNotesPanel = true">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-        </svg>
-        <span>笔记</span>
-        <span v-if="notes.length > 0" class="badge">{{ notes.length }}</span>
-      </button>
-      <button class="bottom-action" @click="showSharePanel = true">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-          <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
-        </svg>
-        <span>分享</span>
-      </button>
+    <!-- 面试题面板 -->
+    <div v-if="showInterviewPanel" class="interview-panel">
+      <div class="interview-panel-header">
+        <h3>📝 面试题练习</h3>
+        <button class="panel-close" @click="showInterviewPanel = false">✕</button>
+      </div>
+      <div class="interview-panel-body">
+        <!-- 生成按钮 -->
+        <div class="interview-generate-section">
+          <button class="btn btn-primary" @click="generateInterviewQuestions" :disabled="generatingQuestions">
+            {{ generatingQuestions ? '生成中...' : '🤖 AI生成面试题' }}
+          </button>
+          <span class="generate-hint">根据文章内容自动生成求职面试题</span>
+        </div>
+        
+        <!-- 题目列表 -->
+        <div v-if="interviewQuestions.length === 0 && !generatingQuestions" class="interview-empty">
+          <div class="empty-icon">❓</div>
+          <p>暂无面试题</p>
+          <span>点击上方按钮生成面试题</span>
+        </div>
+        
+        <div v-for="(q, idx) in interviewQuestions" :key="q.id" class="interview-card">
+          <div class="interview-card-header">
+            <span class="question-num">第 {{ idx + 1 }} 题</span>
+            <div class="question-actions">
+              <button class="action-icon-btn" @click="regenerateQuestion(q.id)" :disabled="q.regenerating" title="重新生成">
+                🔄
+              </button>
+              <button class="action-icon-btn" @click="deleteQuestion(q.id)" title="删除">
+                🗑️
+              </button>
+            </div>
+          </div>
+          <div class="question-text">{{ q.question }}</div>
+          
+          <!-- 未作答状态 -->
+          <div v-if="!q.user_answer && !q.answering" class="answer-section">
+            <textarea v-model="q.draft_answer" class="answer-input" placeholder="请输入你的答案..." rows="4"></textarea>
+            <button class="btn btn-primary btn-sm" @click="submitAnswer(q)" :disabled="!q.draft_answer?.trim()">
+              提交答案
+            </button>
+          </div>
+          
+          <!-- 作答中 -->
+          <div v-if="q.answering" class="answering-status">
+            <span class="loading-spinner"></span> AI评估中...
+          </div>
+          
+          <!-- 已作答，显示评分 -->
+          <div v-if="q.user_answer && q.score !== null" class="result-section">
+            <div class="score-display" :class="getScoreClass(q.score)">
+              <span class="score-num">{{ q.score }}</span>
+              <span class="score-label">分</span>
+            </div>
+            <div class="user-answer-box">
+              <div class="answer-label">我的答案：</div>
+              <div class="answer-content">{{ q.user_answer }}</div>
+            </div>
+            <div class="feedback-box">
+              <div class="feedback-label">AI点评：</div>
+              <div class="feedback-content" v-html="renderAnswer(q.feedback)"></div>
+            </div>
+            <button class="btn btn-secondary btn-sm" @click="retryQuestion(q)">重新作答</button>
+          </div>
+        </div>
+      </div>
     </div>
+    
     
     <!-- 分享面板 -->
     <div v-if="showSharePanel" class="share-panel">
@@ -188,6 +265,11 @@ const notes = ref([])
 const showSharePanel = ref(false)
 const showNotesPanel = ref(false)
 
+// 面试题
+const showInterviewPanel = ref(false)
+const interviewQuestions = ref([])
+const generatingQuestions = ref(false)
+
 // Markdown配置
 const renderer = new marked.Renderer()
 renderer.code = function(code, language) {
@@ -203,6 +285,11 @@ marked.use({ renderer, breaks: true, gfm: true })
 const renderedContent = computed(() => {
   if (!props.article?.content) return ''
   let content = props.article.content
+  
+  // 移除包裹整个内容的markdown代码块（如果存在）
+  content = content.replace(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/i, '$1')
+  
+  // 移除目录部分
   content = content.replace(/^##?\s*📖?\s*目录[\s\S]*?(?=^---|\n##?\s[^目])/m, '')
   return marked(content)
 })
@@ -325,8 +412,108 @@ function copyShareLink() {
   })
 }
 
-watch(() => props.article, () => { extractToc(); loadNotes() }, { immediate: true })
-onMounted(() => { extractToc(); loadNotes() })
+// 面试题功能
+function closeAllPanels() {
+  showAiPanel.value = false
+  tocOpen.value = false
+  showSharePanel.value = false
+  showNotesPanel.value = false
+  showInterviewPanel.value = false
+}
+
+async function loadInterviewQuestions() {
+  if (!props.article?.id) return
+  try {
+    const res = await axios.get(`/api/interview/${props.article.id}`)
+    interviewQuestions.value = (res.data.questions || []).map(q => ({
+      ...q,
+      draft_answer: '',
+      answering: false,
+      regenerating: false
+    }))
+  } catch (e) { console.error(e) }
+}
+
+async function generateInterviewQuestions() {
+  if (generatingQuestions.value) return
+  generatingQuestions.value = true
+  try {
+    await axios.post('/api/interview/generate', { article_id: props.article.id, count: 5 })
+    await loadInterviewQuestions()
+  } catch (e) {
+    alert('生成面试题失败：' + (e.response?.data?.detail || e.message))
+  }
+  generatingQuestions.value = false
+}
+
+async function submitAnswer(q) {
+  if (!q.draft_answer?.trim() || q.answering) return
+  q.answering = true
+  try {
+    const res = await axios.post('/api/interview/answer', {
+      question_id: q.id,
+      answer: q.draft_answer
+    })
+    q.user_answer = q.draft_answer
+    q.score = res.data.score
+    q.feedback = res.data.feedback
+  } catch (e) {
+    alert('提交失败：' + (e.response?.data?.detail || e.message))
+  }
+  q.answering = false
+}
+
+async function regenerateQuestion(questionId) {
+  const q = interviewQuestions.value.find(x => x.id === questionId)
+  if (!q || q.regenerating) return
+  q.regenerating = true
+  try {
+    const res = await axios.post(`/api/interview/regenerate/${questionId}`)
+    const idx = interviewQuestions.value.findIndex(x => x.id === questionId)
+    if (idx >= 0) {
+      interviewQuestions.value[idx] = {
+        id: res.data.new_id,
+        question: res.data.question,
+        reference_answer: res.data.reference_answer,
+        user_answer: null,
+        score: null,
+        feedback: null,
+        draft_answer: '',
+        answering: false,
+        regenerating: false
+      }
+    }
+  } catch (e) {
+    alert('重新生成失败：' + (e.response?.data?.detail || e.message))
+  }
+  q.regenerating = false
+}
+
+async function deleteQuestion(questionId) {
+  if (!confirm('确定删除这道面试题吗？')) return
+  try {
+    await axios.delete(`/api/interview/${questionId}`)
+    interviewQuestions.value = interviewQuestions.value.filter(q => q.id !== questionId)
+  } catch (e) {
+    alert('删除失败：' + (e.response?.data?.detail || e.message))
+  }
+}
+
+function retryQuestion(q) {
+  q.user_answer = null
+  q.score = null
+  q.feedback = null
+  q.draft_answer = ''
+}
+
+function getScoreClass(score) {
+  if (score >= 80) return 'score-high'
+  if (score >= 60) return 'score-medium'
+  return 'score-low'
+}
+
+watch(() => props.article, () => { extractToc(); loadNotes(); loadInterviewQuestions() }, { immediate: true })
+onMounted(() => { extractToc(); loadNotes(); loadInterviewQuestions() })
 </script>
 
 <style scoped>
@@ -426,47 +613,42 @@ onMounted(() => { extractToc(); loadNotes() })
 
 .panel-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); z-index: 1000; }
 
-/* 底部操作栏 */
-.article-bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+/* 文章末尾操作栏 */
+.article-footer-actions {
   display: flex;
-  justify-content: center;
-  gap: 32px;
-  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
-  background: white;
+  gap: 12px;
+  margin-top: 40px;
+  padding-top: 24px;
   border-top: 1px solid var(--border);
-  z-index: 99;
 }
-.bottom-action {
+.footer-action-btn {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
+  transition: all 0.2s;
   position: relative;
-  padding: 4px 12px;
-  transition: color 0.2s;
 }
-.bottom-action:hover { color: var(--primary); }
-.bottom-action svg { opacity: 0.7; }
-.bottom-action:hover svg { opacity: 1; }
-.bottom-action .badge {
-  position: absolute;
-  top: -2px;
-  right: 0;
+.footer-action-btn:hover {
+  background: var(--primary-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.footer-action-btn svg { opacity: 0.7; }
+.footer-action-btn:hover svg { opacity: 1; }
+.action-badge {
   background: var(--primary);
   color: white;
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 6px;
   border-radius: 10px;
-  min-width: 16px;
+  min-width: 18px;
   text-align: center;
 }
 
@@ -585,16 +767,199 @@ onMounted(() => { extractToc(); loadNotes() })
 .note-time { font-size: 12px; color: var(--text-muted); }
 .note-delete-btn { background: none; border: none; color: var(--error); font-size: 12px; cursor: pointer; }
 
+/* 面试题面板 */
+.interview-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  z-index: 1002;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.25s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -48%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+
+.interview-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+  border-radius: 16px 16px 0 0;
+}
+.interview-panel-header h3 { font-size: 18px; font-weight: 600; color: #92400E; }
+
+.interview-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.interview-generate-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px dashed var(--border);
+}
+.generate-hint { font-size: 13px; color: var(--text-muted); }
+
+.interview-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.interview-empty .empty-icon { font-size: 56px; margin-bottom: 16px; }
+.interview-empty p { font-size: 16px; color: var(--text-secondary); margin-bottom: 8px; }
+
+.interview-card {
+  background: var(--bg-main);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+.interview-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.question-num {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-bg);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+.question-actions { display: flex; gap: 8px; }
+.action-icon-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+.action-icon-btn:hover { opacity: 1; }
+.action-icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.question-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.answer-section { margin-top: 12px; }
+.answer-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  margin-bottom: 12px;
+  font-family: inherit;
+}
+.answer-input:focus { outline: none; border-color: var(--primary); }
+
+.answering-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  background: #FEF3C7;
+  border-radius: 8px;
+  color: #92400E;
+  font-size: 14px;
+}
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #FCD34D;
+  border-top-color: #F59E0B;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.result-section { margin-top: 12px; }
+.score-display {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+.score-num { font-size: 28px; font-weight: 700; }
+.score-label { font-size: 14px; }
+.score-high { background: #D1FAE5; color: #065F46; }
+.score-medium { background: #FEF3C7; color: #92400E; }
+.score-low { background: #FEE2E2; color: #991B1B; }
+
+.user-answer-box, .feedback-box {
+  background: white;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+.answer-label, .feedback-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.answer-content { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+.feedback-content { font-size: 14px; color: var(--text-primary); line-height: 1.7; }
+
+.interview-btn { background: linear-gradient(135deg, #FEF3C7, #FDE68A) !important; border-color: #FCD34D !important; color: #92400E !important; }
+.interview-btn:hover { background: linear-gradient(135deg, #FDE68A, #FCD34D) !important; }
+
 /* 移动端适配 */
 @media (max-width: 768px) {
-  .article-title { font-size: 1.4rem; }
+  .article-detail-view { padding: 0 12px; }
+  .article-title { font-size: 1.3rem; line-height: 1.5; }
+  .article-meta { font-size: 13px; gap: 10px; padding-bottom: 16px; margin-bottom: 16px; }
   .document-toc { position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 1001; transform: translateX(-100%); transition: transform 0.3s; background: white; }
   .document-toc.toc-open { transform: translateX(0); }
   .toc-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); }
   .toc-close { display: block; background: none; border: none; font-size: 20px; color: var(--text-muted); cursor: pointer; }
-  .mobile-toc-btn { display: flex; position: fixed; bottom: 80px; right: 24px; padding: 10px 16px; background: white; border: 1px solid var(--border); border-radius: 20px; font-size: 13px; color: var(--text-primary); cursor: pointer; z-index: 99; box-shadow: var(--shadow-md); }
-  .ai-fab { bottom: 140px; right: 16px; width: 54px; height: 54px; }
+  .mobile-toc-btn { display: flex; position: fixed; bottom: 100px; right: 16px; padding: 10px 16px; background: white; border: 1px solid var(--border); border-radius: 20px; font-size: 13px; color: var(--text-primary); cursor: pointer; z-index: 99; box-shadow: var(--shadow-md); }
+  .interview-panel { width: 95%; max-height: 90vh; }
+  .interview-panel-body { padding: 16px; }
+  .interview-generate-section { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .interview-card { padding: 16px; }
+  .score-num { font-size: 24px; }
+  .ai-fab { bottom: 32px; right: 16px; width: 54px; height: 54px; }
   .ai-panel { width: 100%; height: 80vh; border-radius: 20px 20px 0 0; }
-  .article-content { padding-bottom: 80px; }
+  .article-content { padding: 16px; }
+  .article-footer-actions { flex-wrap: wrap; margin-top: 24px; padding-top: 16px; }
+  .footer-action-btn { padding: 8px 16px; font-size: 13px; }
+}
+
+@media (max-width: 480px) {
+  .article-detail-view { padding: 0 8px; }
+  .article-title { font-size: 1.15rem; }
+  .article-meta { font-size: 12px; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .article-content { padding: 12px; }
+  .ai-fab { width: 48px; height: 48px; bottom: 24px; right: 12px; }
+  .ai-fab svg { width: 22px; height: 22px; }
+  .mobile-toc-btn { bottom: 90px; right: 12px; padding: 8px 12px; font-size: 12px; }
+  .share-options { gap: 16px; flex-wrap: wrap; }
+  .share-btn { padding: 8px; }
+  .share-btn svg { width: 28px; height: 28px; }
 }
 </style>

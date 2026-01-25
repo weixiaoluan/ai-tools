@@ -13,7 +13,14 @@ AI_CONFIG = {
     "api_base": os.getenv("AI_API_BASE", "https://api.siliconflow.cn/v1"),
     "model": os.getenv("AI_MODEL", "deepseek-ai/DeepSeek-V3"),
     "temperature": 0.7,
-    "max_tokens": 16384  # 增加到16K以支持更长文章
+    "max_tokens": 65536  # 不限制输出长度，让模型充分生成
+}
+
+# 图片生成配置（可在环境变量中覆盖）
+IMAGE_CONFIG = {
+    "model": os.getenv("IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell"),
+    "image_size": os.getenv("IMAGE_SIZE", "1024x576"),
+    "num_inference_steps": int(os.getenv("IMAGE_STEPS", "20")),
 }
 
 # 文章生成配置

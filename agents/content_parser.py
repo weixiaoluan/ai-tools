@@ -106,18 +106,59 @@ URL: {url}
             return {"url": url, "error": str(e)}
     
     def web_search(self, query: str) -> List[dict]:
-        """联网搜索（模拟，实际需要接入搜索API）"""
+        """使用DuckDuckGo进行真实联网搜索"""
+        try:
+            import urllib.parse
+            search_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+            
+            with httpx.Client(timeout=15.0) as client:
+                response = client.get(search_url, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                })
+                
+                if response.status_code == 200:
+                    # 简单解析HTML提取搜索结果
+                    html = response.text
+                    results = []
+                    
+                    # 使用正则提取搜索结果
+                    import re
+                    # 匹配搜索结果块
+                    result_pattern = r'<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)</a>'
+                    snippet_pattern = r'<a[^>]*class="result__snippet"[^>]*>([^<]*(?:<[^>]*>[^<]*</[^>]*>)*[^<]*)</a>'
+                    
+                    titles = re.findall(result_pattern, html)
+                    snippets = re.findall(snippet_pattern, html)
+                    
+                    for i, (url, title) in enumerate(titles[:5]):
+                        snippet = snippets[i] if i < len(snippets) else ""
+                        # 清理HTML标签
+                        snippet = re.sub(r'<[^>]+>', '', snippet).strip()
+                        if title and snippet:
+                            results.append(f"**{title.strip()}**\n{snippet}")
+                    
+                    if results:
+                        return [{"query": query, "results": "\n\n".join(results)}]
+            
+            # 如果搜索失败，回退到AI知识
+            return self._fallback_search(query)
+        except Exception as e:
+            print(f"联网搜索失败: {e}")
+            return self._fallback_search(query)
+    
+    def _fallback_search(self, query: str) -> List[dict]:
+        """搜索失败时的回退方案：使用AI知识"""
         prompt = f"""用户想要学习关于「{query}」的内容。
 
 请基于你的知识，提供：
-1. 该主题的最新发展和趋势
-2. 推荐的学习资源和方向
-3. 核心知识点概述
+1. 该主题的核心知识点概述
+2. 重要概念和定义
+3. 学习建议
 
 以结构化的方式回答。"""
         
         response = self.chat(prompt)
-        return [{"query": query, "results": response}]
+        return [{"query": query, "results": response, "source": "AI知识库"}]
     
     def combine_sources(self, topic: str, sources: List[dict]) -> str:
         """整合多个来源的信息"""

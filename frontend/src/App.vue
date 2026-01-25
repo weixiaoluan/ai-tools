@@ -252,29 +252,47 @@ function removeNotification(idx) {
 }
 
 async function handleGenerate(data) {
-  const { topic, description, links, enableSearch, generateType } = data
+  const { topic, description, links, enableSearch, generateType, files } = data
+  
+  // 先上传文件（如果有）
+  let fileIds = []
+  if (files && files.length > 0) {
+    try {
+      const formData = new FormData()
+      files.forEach(file => formData.append('files', file))
+      const uploadRes = await axios.post('/api/upload/files', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      if (uploadRes.data.success) {
+        fileIds = uploadRes.data.files
+      }
+    } catch (e) {
+      console.error('文件上传失败:', e)
+    }
+  }
+  
   if (generateType === 'article') {
-    await generateArticleAsync(topic, description, links, enableSearch)
+    await generateArticleAsync(topic, description, links, enableSearch, fileIds)
   } else {
-    await generateOutlineForConfirm(topic, description, links, enableSearch)
+    await generateOutlineForConfirm(topic, description, links, enableSearch, fileIds)
   }
 }
 
-async function generateArticleAsync(topic, description, links, enableSearch) {
+async function generateArticleAsync(topic, description, links, enableSearch, fileIds = []) {
   const notifIdx = addNotification('生成文章', `「${topic}」正在后台生成...`, 'running')
   try {
-    const res = await axios.post('/api/generate/article', { topic, description, links, enableSearch })
+    const res = await axios.post('/api/generate/article', { topic, description, links, enableSearch, fileIds })
     if (res.data.success) pollTaskStatus(res.data.task_id, notifIdx, 'article')
   } catch (e) {
     updateNotification(notifIdx, { type: 'error', desc: e.response?.data?.detail || '创建失败' })
   }
 }
 
-async function generateOutlineForConfirm(topic, description, links, enableSearch) {
+async function generateOutlineForConfirm(topic, description, links, enableSearch, fileIds = []) {
   outlineLoading.value = true
   const notifIdx = addNotification('生成大纲', `「${topic}」正在生成学习大纲...`, 'running')
   try {
-    const res = await axios.post('/api/generate/outline', { topic, description, links, enableSearch })
+    const res = await axios.post('/api/generate/outline', { topic, description, links, enableSearch, fileIds })
     if (res.data.success) {
       pendingOutline.value = res.data.outline
       updateNotification(notifIdx, { type: 'success', desc: '大纲生成完成，请确认' })

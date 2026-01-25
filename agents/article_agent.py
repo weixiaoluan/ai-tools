@@ -5,7 +5,7 @@
 import re
 import requests
 from .base_agent import BaseAgent
-from config import AGENT_ROLES, ARTICLE_CONFIG, AI_CONFIG
+from config import AGENT_ROLES, ARTICLE_CONFIG, AI_CONFIG, IMAGE_CONFIG
 
 
 class ArticleAgent(BaseAgent):
@@ -31,10 +31,10 @@ class ArticleAgent(BaseAgent):
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "black-forest-labs/FLUX.1-schnell",
+                    "model": IMAGE_CONFIG.get("model", "black-forest-labs/FLUX.1-schnell"),
                     "prompt": prompt,
-                    "image_size": "1024x576",
-                    "num_inference_steps": 20
+                    "image_size": IMAGE_CONFIG.get("image_size", "1024x576"),
+                    "num_inference_steps": IMAGE_CONFIG.get("num_inference_steps", 20)
                 },
                 timeout=90
             )
@@ -92,18 +92,51 @@ class ArticleAgent(BaseAgent):
         if extra_context:
             context_section = f"\n\n参考资料：\n{extra_context[:3000]}\n"
 
-        prompt = f"""请撰写一篇关于「{topic}」的高质量文章。
+        prompt = f"""请撰写一篇关于「{topic}」的高质量深度学习文章。
 
 {f'用户要求：{description}' if description else ''}
 {context_section}
 
-写作要求：
-1. 根据主题特点自由组织内容结构，不要套用固定模板
-2. 文章要有独特视角和深度见解，避免泛泛而谈
-3. 语言风格要符合主题特点：技术类专业严谨，人物类生动有趣，生活类轻松实用
-4. 如果是技术编程类主题才需要代码示例，其他类型不要包含代码
-5. 字数3000-5000字，内容充实有价值
-6. 使用Markdown格式，标题层级清晰
+【核心写作原则】
+1. **深度讲解优先**：每个知识点必须有详尽的概念讲解，至少包含：
+   - 是什么：准确定义，用通俗易懂的语言解释
+   - 为什么：设计初衷，解决什么问题，为什么需要它
+   - 怎么用：使用场景、使用时机、最佳实践
+   - 注意什么：常见误区、易错点、性能考虑
+2. **代码必须详细注释**：每行代码都要有中文注释说明其作用
+3. **循序渐进**：从简单到复杂，层层深入
+
+【知识点讲解模板】
+每个知识点按以下结构展开：
+1. **概念定义**（2-3段）：用生活化类比解释抽象概念
+2. **核心原理**（2-3段）：底层机制、工作流程
+3. **应用场景**（列举3-5个实际场景）
+4. **代码示例**（带详细中文注释）
+5. **常见问题与解答**（FAQ形式）
+6. **小结**（核心要点回顾）
+
+【代码注释要求】
+```python
+# 定义一个单例类，确保全局只有一个实例
+class Singleton:
+    _instance = None  # 类变量，存储唯一实例
+    
+    def __new__(cls):  # 重写__new__方法控制实例创建
+        if cls._instance is None:  # 判断是否已存在实例
+            cls._instance = super().__new__(cls)  # 首次创建实例
+        return cls._instance  # 返回唯一实例
+```
+
+【格式要求】
+- 不限制字数，确保每个知识点讲解充分透彻
+- 使用Markdown格式，标题层级清晰
+- 重要概念用**加粗**突出
+- 每个知识点的文字讲解不少于代码量的3倍
+
+【禁止事项】
+- 禁止代码没有注释
+- 禁止概念一笔带过
+- 禁止知识点只有代码没有详细解释
 
 直接输出文章内容："""
 

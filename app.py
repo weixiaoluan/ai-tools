@@ -2,13 +2,15 @@
 LearnFlow AI - 智能学习内容生成平台
 FastAPI后端服务
 """
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional, List
+import tempfile
+import shutil
 import uuid
 import json
 import os
@@ -39,6 +41,16 @@ if os.path.exists("static"):
 
 # 内存中的任务状态（用于实时更新）
 tasks_memory = {}
+TASK_MEMORY_MAX_SIZE = 100  # 最大缓存任务数
+
+def cleanup_tasks_memory():
+    """清理已完成的旧任务，防止内存泄漏"""
+    if len(tasks_memory) > TASK_MEMORY_MAX_SIZE:
+        completed_tasks = [k for k, v in tasks_memory.items() 
+                          if v.get('status') in ('completed', 'failed')]
+        # 删除最旧的一半已完成任务
+        for task_id in completed_tasks[:len(completed_tasks)//2]:
+            del tasks_memory[task_id]
 
 # 并发线程池
 executor = ThreadPoolExecutor(max_workers=12)
@@ -78,6 +90,7 @@ class TopicRequest(BaseModel):
     description: Optional[str] = ""
     links: Optional[List[str]] = []
     enableSearch: Optional[bool] = False
+    fileIds: Optional[List[dict]] = []  # 上传的文件信息列表
 
 class OutlineRequest(BaseModel):
     outline_id: str
@@ -113,6 +126,14 @@ class SaveNoteRequest(BaseModel):
     question: str
     answer: str
 
+class GenerateInterviewRequest(BaseModel):
+    article_id: str
+    count: Optional[int] = 5
+
+class AnswerInterviewRequest(BaseModel):
+    question_id: int
+    answer: str
+
 # ========== 认证接口 ==========
 @app.post("/api/auth/register")
 async def register(request: UserRegister):
@@ -136,21 +157,64 @@ async def login(request: UserLogin):
     return {"success": True, "user": {"username": user["username"], "email": user["email"], "token": token}}
 
 # ========== 配置接口 ==========
+# 支持深度思考的模型列表
+DEEP_THINK_MODELS = [
+    "deepseek-r1", "deepseek-reasoner", "r1-",
+    "o1-", "o1-mini", "o1-preview",
+    "qwq", "qwen-qwq",
+    "claude-3-5-sonnet", "claude-3-opus",
+    "gpt-4o", "gpt-4-turbo",
+]
+
+def check_deep_think_support(model: str) -> bool:
+    """检查模型是否支持深度思考"""
+    model_lower = model.lower()
+    for pattern in DEEP_THINK_MODELS:
+        if pattern in model_lower:
+            return True
+    return False
+
 @app.get("/api/config")
 async def get_config():
     config = db.get_all_config()
-    api_key = config.get("api_key", "")
+    current_provider = config.get("provider", "siliconflow")
+    # 获取当前服务商的API Key
+    api_key = config.get(f"api_key_{current_provider}", config.get("api_key", ""))
+    model = config.get("model", "deepseek-ai/DeepSeek-V3")
+    
+    # 构建所有服务商的API Key状态（仅返回是否已配置）
+    provider_keys = {}
+    for p in ['siliconflow', 'aliyun', 'deepseek', 'openai', 'gemini', 'xinliu', 'custom']:
+        key = config.get(f"api_key_{p}", "")
+        provider_keys[p] = "***" + key[-4:] if key else ""
+    
     return {
         "api_key": "***" + api_key[-4:] if api_key else "",
         "api_base": config.get("api_base", "https://api.siliconflow.cn/v1"),
-        "model": config.get("model", "deepseek-ai/DeepSeek-V3"),
-        "provider": config.get("provider", "siliconflow"),
-        "configured": bool(api_key)
+        "model": model,
+        "provider": current_provider,
+        "configured": bool(api_key),
+        "supports_deep_think": check_deep_think_support(model),
+        "provider_keys": provider_keys
     }
 
 @app.post("/api/config")
 async def save_config(request: ConfigRequest, user: dict = Depends(get_current_user)):
-    db.set_config("api_key", request.api_key)
+    config = db.get_all_config()
+    
+    # 处理API Key
+    if request.api_key == "__USE_EXISTING__":
+        # 使用已存储的该服务商的API Key
+        api_key = config.get(f"api_key_{request.provider}", "")
+        if not api_key:
+            raise HTTPException(status_code=400, detail="该服务商尚未配置API Key")
+    else:
+        # 新输入的API Key，按服务商存储
+        api_key = request.api_key
+        db.set_config(f"api_key_{request.provider}", api_key)
+    
+    # 更新当前使用的api_key（兼容旧逻辑）
+    db.set_config("api_key", api_key)
     db.set_config("api_base", request.api_base)
     db.set_config("model", request.model)
     db.set_config("provider", request.provider)
@@ -167,15 +231,25 @@ async def article_page(article_id: str):
     return FileResponse("static/index.html", headers={"Cache-Control": "no-cache"})
 
 # ========== 后台任务生成 ==========
-def generate_single_chapter_sync(chapter: dict, outline: dict, enable_search: bool = False) -> dict:
-    try:
-        agent = ChapterAgent()
-        content = agent.generate_chapter(chapter, outline, enable_search)
-        return {"id": chapter["id"], "title": chapter["title"], "content": content, "status": "success"}
-    except Exception as e:
-        return {"id": chapter["id"], "title": chapter["title"], "content": f"生成失败: {str(e)}", "status": "failed"}
+MAX_RETRY_ATTEMPTS = 2  # 章节生成最大重试次数
 
-def run_article_generation(task_id: str, topic: str, description: str, username: str, enable_search: bool, links: list = None):
+def generate_single_chapter_sync(chapter: dict, outline: dict, enable_search: bool = False) -> dict:
+    """生成单个章节，带重试机制"""
+    last_error = None
+    for attempt in range(MAX_RETRY_ATTEMPTS + 1):
+        try:
+            agent = ChapterAgent()
+            content = agent.generate_chapter(chapter, outline, enable_search)
+            return {"id": chapter["id"], "title": chapter["title"], "content": content, "status": "success"}
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRY_ATTEMPTS:
+                import time
+                time.sleep(2)  # 重试前等待2秒
+                continue
+    return {"id": chapter["id"], "title": chapter["title"], "content": f"生成失败: {str(last_error)}", "status": "failed"}
+
+def run_article_generation(task_id: str, topic: str, description: str, username: str, enable_search: bool, links: list = None, file_ids: list = None):
     tasks_memory[task_id] = {"status": "running", "steps": [], "current_step": "🚀 开始生成文章..."}
     
     def add_step(step: str):
@@ -187,6 +261,14 @@ def run_article_generation(task_id: str, topic: str, description: str, username:
         add_step("🚀 开始生成文章...")
         extra_context = ""
         
+        # 处理上传的文件
+        if file_ids and len(file_ids) > 0:
+            add_step(f"📄 正在解析 {len(file_ids)} 个上传文件...")
+            file_content = process_uploaded_files(file_ids)
+            if file_content:
+                extra_context += f"\n\n### 参考文件内容\n{file_content}"
+                add_step("✅ 文件解析完成")
+        
         if links and len(links) > 0:
             add_step(f"🔗 正在解析 {len(links)} 个参考链接...")
             parser = ContentParser()
@@ -196,8 +278,8 @@ def run_article_generation(task_id: str, topic: str, description: str, username:
                 try:
                     result = parser.parse_url(link)
                     link_results.append(result)
-                except:
-                    pass
+                except Exception as e:
+                    add_step(f"⚠️ 链接解析失败: {link[:50]}...")
             if link_results:
                 add_step("📝 整合链接内容...")
                 extra_context += parser.combine_sources(topic, link_results)
@@ -232,6 +314,8 @@ def run_article_generation(task_id: str, topic: str, description: str, username:
         tasks_memory[task_id]["status"] = "failed"
         tasks_memory[task_id]["error"] = str(e)
         db.update_task(task_id, status="failed", error=str(e))
+    finally:
+        cleanup_tasks_memory()  # 清理旧任务
 
 def run_document_generation(task_id: str, outline: dict, username: str, enable_search: bool):
     chapters = outline.get("chapters", [])
@@ -283,6 +367,78 @@ def run_document_generation(task_id: str, outline: dict, username: str, enable_s
     tasks_memory[task_id]["status"] = "completed"
     tasks_memory[task_id]["current_step"] = "🎉 文档已保存到学习文档列表"
     db.update_task(task_id, status="completed", current_step="🎉 文档已保存到学习文档列表")
+    cleanup_tasks_memory()  # 清理旧任务
+
+# ========== 文件上传处理 ==========
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+def parse_uploaded_file(file_path: str, filename: str) -> str:
+    """解析上传的文件内容"""
+    try:
+        ext = filename.lower().split('.')[-1]
+        
+        if ext in ('txt', 'md'):
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                return f.read()[:10000]  # 限制长度
+        
+        elif ext == 'pdf':
+            try:
+                import PyPDF2
+                with open(file_path, 'rb') as f:
+                    reader = PyPDF2.PdfReader(f)
+                    text = ""
+                    for page in reader.pages[:20]:  # 最多20页
+                        text += page.extract_text() or ""
+                    return text[:10000]
+            except ImportError:
+                return f"[PDF文件: {filename}，需要安装PyPDF2库]"
+        
+        elif ext in ('doc', 'docx'):
+            try:
+                import docx
+                doc = docx.Document(file_path)
+                text = "\n".join([para.text for para in doc.paragraphs])
+                return text[:10000]
+            except ImportError:
+                return f"[Word文件: {filename}，需要安装python-docx库]"
+        
+        return f"[不支持的文件类型: {ext}]"
+    except Exception as e:
+        return f"[文件解析失败: {str(e)}]"
+
+@app.post("/api/upload/files")
+async def upload_files(
+    files: List[UploadFile] = File(...),
+    user: dict = Depends(get_current_user)
+):
+    """上传文件并返回文件ID列表"""
+    file_ids = []
+    for file in files:
+        file_id = str(uuid.uuid4())[:8]
+        file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'txt'
+        file_path = os.path.join(UPLOAD_DIR, f"{file_id}.{file_ext}")
+        
+        with open(file_path, 'wb') as f:
+            shutil.copyfileobj(file.file, f)
+        
+        file_ids.append({
+            "id": file_id,
+            "name": file.filename,
+            "path": file_path
+        })
+    
+    return {"success": True, "files": file_ids}
+
+def process_uploaded_files(file_ids: List[dict]) -> str:
+    """处理上传的文件，提取内容"""
+    contents = []
+    for file_info in file_ids:
+        if isinstance(file_info, dict) and file_info.get('path'):
+            content = parse_uploaded_file(file_info['path'], file_info.get('name', ''))
+            if content:
+                contents.append(f"### 文件: {file_info.get('name', '未知')}\n{content}")
+    return "\n\n".join(contents)
 
 # ========== 生成接口 ==========
 @app.post("/api/generate/article")
@@ -304,7 +460,7 @@ async def generate_article(request: TopicRequest, user: dict = Depends(get_curre
     
     thread = threading.Thread(
         target=run_article_generation,
-        args=(task_id, topic, request.description or "", user["username"], request.enableSearch, request.links or [])
+        args=(task_id, topic, request.description or "", user["username"], request.enableSearch, request.links or [], request.fileIds or [])
     )
     thread.start()
     
@@ -520,14 +676,233 @@ async def delete_note(note_id: int, user: dict = Depends(get_current_user)):
     db.delete_note(note_id, user["username"])
     return {"success": True}
 
+# ========== 面试题接口 ==========
+@app.get("/api/interview/{article_id}")
+async def get_interview_questions(article_id: str, user: dict = Depends(get_current_user)):
+    questions = db.get_interview_questions(article_id, user["username"])
+    return {"questions": questions}
+
+@app.post("/api/interview/generate")
+async def generate_interview_questions(request: GenerateInterviewRequest, user: dict = Depends(get_current_user)):
+    load_ai_config()
+    if not AI_CONFIG.get("api_key"):
+        raise HTTPException(status_code=400, detail="请先配置API Key")
+    
+    article = db.get_article(request.article_id)
+    if not article:
+        raise HTTPException(status_code=404, detail="文章不存在")
+    
+    prompt = f"""根据以下文章内容，生成{request.count}道高质量的求职面试题。
+
+文章标题：{article['title']}
+文章内容：
+{article['content'][:8000]}
+
+要求：
+1. 面试题要覆盖文章的核心知识点
+2. 难度适中，符合实际面试场景
+3. 包含概念理解题、应用场景题、对比分析题等不同类型
+4. 每道题都要有参考答案
+
+请按以下JSON格式输出（只输出JSON，不要其他内容）：
+[
+  {{"question": "面试题1", "reference_answer": "参考答案1"}},
+  {{"question": "面试题2", "reference_answer": "参考答案2"}}
+]"""
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{AI_CONFIG['api_base']}/chat/completions",
+                headers={"Authorization": f"Bearer {AI_CONFIG['api_key']}", "Content-Type": "application/json"},
+                json={
+                    "model": AI_CONFIG["model"],
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7,
+                    "max_tokens": 4096
+                }
+            )
+            result = response.json()
+            content = result["choices"][0]["message"]["content"]
+            
+            # 解析JSON
+            import re
+            json_match = re.search(r'\[[\s\S]*\]', content)
+            if json_match:
+                questions_data = json.loads(json_match.group())
+                created_ids = []
+                for q in questions_data:
+                    qid = db.create_interview_question(
+                        request.article_id, 
+                        q["question"], 
+                        q.get("reference_answer", ""),
+                        user["username"]
+                    )
+                    created_ids.append(qid)
+                return {"success": True, "count": len(created_ids)}
+            else:
+                raise HTTPException(status_code=500, detail="AI返回格式错误")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"生成面试题失败: {str(e)}")
+
+@app.post("/api/interview/answer")
+async def answer_interview_question(request: AnswerInterviewRequest, user: dict = Depends(get_current_user)):
+    load_ai_config()
+    if not AI_CONFIG.get("api_key"):
+        raise HTTPException(status_code=400, detail="请先配置API Key")
+    
+    question = db.get_interview_question(request.question_id, user["username"])
+    if not question:
+        raise HTTPException(status_code=404, detail="面试题不存在")
+    
+    prompt = f"""你是一位资深技术面试官，请评估以下面试回答。
+
+面试题：{question['question']}
+
+参考答案：{question['reference_answer']}
+
+考生回答：{request.answer}
+
+请从以下几个维度进行评估：
+1. 正确性：回答是否正确
+2. 完整性：是否覆盖了关键点
+3. 专业性：表达是否专业、条理清晰
+4. 深度：是否有深入理解和独到见解
+
+请按以下JSON格式输出（只输出JSON）：
+{{"score": 85, "feedback": "### 评分：85分\\n\\n**优点：**\\n- xxx\\n\\n**不足：**\\n- xxx\\n\\n**建议回答：**\\n更专业的回答方式是..."}}
+
+score为0-100分，feedback使用Markdown格式详细点评并给出更好的回答建议。"""
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{AI_CONFIG['api_base']}/chat/completions",
+                headers={"Authorization": f"Bearer {AI_CONFIG['api_key']}", "Content-Type": "application/json"},
+                json={
+                    "model": AI_CONFIG["model"],
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7,
+                    "max_tokens": 2048
+                }
+            )
+            result = response.json()
+            content = result["choices"][0]["message"]["content"]
+            
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', content)
+            if json_match:
+                eval_data = json.loads(json_match.group())
+                score = eval_data.get("score", 0)
+                feedback = eval_data.get("feedback", "评估失败")
+                
+                db.update_interview_answer(request.question_id, request.answer, score, feedback, user["username"])
+                return {"success": True, "score": score, "feedback": feedback}
+            else:
+                raise HTTPException(status_code=500, detail="AI返回格式错误")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"评估答案失败: {str(e)}")
+
+@app.post("/api/interview/regenerate/{question_id}")
+async def regenerate_interview_question(question_id: int, user: dict = Depends(get_current_user)):
+    load_ai_config()
+    if not AI_CONFIG.get("api_key"):
+        raise HTTPException(status_code=400, detail="请先配置API Key")
+    
+    old_question = db.get_interview_question(question_id, user["username"])
+    if not old_question:
+        raise HTTPException(status_code=404, detail="面试题不存在")
+    
+    article = db.get_article(old_question['article_id'])
+    if not article:
+        raise HTTPException(status_code=404, detail="文章不存在")
+    
+    prompt = f"""根据以下文章内容，生成1道新的高质量面试题（不要与旧题目重复）。
+
+文章标题：{article['title']}
+文章内容摘要：{article['content'][:4000]}
+
+旧题目（请生成不同的）：{old_question['question']}
+
+请按以下JSON格式输出（只输出JSON）：
+{{"question": "新面试题", "reference_answer": "参考答案"}}"""
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{AI_CONFIG['api_base']}/chat/completions",
+                headers={"Authorization": f"Bearer {AI_CONFIG['api_key']}", "Content-Type": "application/json"},
+                json={
+                    "model": AI_CONFIG["model"],
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.8,
+                    "max_tokens": 1024
+                }
+            )
+            result = response.json()
+            content = result["choices"][0]["message"]["content"]
+            
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', content)
+            if json_match:
+                q_data = json.loads(json_match.group())
+                db.delete_interview_question(question_id, user["username"])
+                new_id = db.create_interview_question(
+                    old_question['article_id'],
+                    q_data["question"],
+                    q_data.get("reference_answer", ""),
+                    user["username"]
+                )
+                return {"success": True, "new_id": new_id, "question": q_data["question"], "reference_answer": q_data.get("reference_answer", "")}
+            else:
+                raise HTTPException(status_code=500, detail="AI返回格式错误")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"重新生成失败: {str(e)}")
+
+@app.delete("/api/interview/{question_id}")
+async def delete_interview_question(question_id: int, user: dict = Depends(get_current_user)):
+    db.delete_interview_question(question_id, user["username"])
+    return {"success": True}
+
 # ========== AI对话接口（流式） ==========
 class ChatRequest(BaseModel):
     message: str
     history: Optional[List[dict]] = []
     conversation_id: Optional[str] = None
+    deep_think: Optional[bool] = True
+    web_search: Optional[bool] = False
 
 class ImageGenRequest(BaseModel):
     prompt: str
+
+async def web_search(query: str) -> str:
+    """使用DuckDuckGo进行网络搜索"""
+    try:
+        import urllib.parse
+        search_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(search_url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            })
+            if response.status_code == 200:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(response.text, 'html.parser')
+                results = []
+                for result in soup.select('.result')[:5]:
+                    title_elem = result.select_one('.result__title')
+                    snippet_elem = result.select_one('.result__snippet')
+                    if title_elem and snippet_elem:
+                        title = title_elem.get_text(strip=True)
+                        snippet = snippet_elem.get_text(strip=True)
+                        results.append(f"- {title}: {snippet}")
+                if results:
+                    return "\n".join(results)
+        return ""
+    except Exception as e:
+        return ""
 
 @app.post("/api/chat/stream")
 async def chat_stream(request: ChatRequest, user: dict = Depends(get_current_user)):
@@ -537,7 +912,23 @@ async def chat_stream(request: ChatRequest, user: dict = Depends(get_current_use
     
     async def generate():
         try:
-            messages = [{"role": "system", "content": "你是一个智能AI助手，能够回答各种问题，提供有帮助的信息。回答要准确、清晰、有条理。如果用户要求生成图片，请回复：[生成图片: 图片描述]，其中图片描述用英文。"}]
+            # 根据开关构建系统提示
+            if request.deep_think:
+                system_content = "你是一个智能AI助手。请先进行深度思考和分析，展示你的推理过程，然后给出详细的回答。用分隔线---将思考过程和最终回答分开。"
+            else:
+                system_content = "你是一个智能AI助手。直接回答用户问题，不要展示思考过程，回答要简洁、准确。"
+            
+            # 联网搜索
+            search_context = ""
+            search_results_text = ""
+            if request.web_search:
+                search_results_text = await web_search(request.message)
+                if search_results_text:
+                    # 先发送搜索结果给前端显示
+                    yield f"data: {json.dumps({'search_results': search_results_text})}\n\n"
+                    search_context = f"\n\n以下是网络搜索到的参考资料，请结合这些信息回答（不要在回答中重复列出这些搜索结果）:\n{search_results_text}"
+            
+            messages = [{"role": "system", "content": system_content + search_context}]
             
             for h in request.history[-10:]:
                 messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
@@ -545,9 +936,10 @@ async def chat_stream(request: ChatRequest, user: dict = Depends(get_current_use
             messages.append({"role": "user", "content": request.message})
             
             async with httpx.AsyncClient(timeout=120.0) as client:
+                url = f"{AI_CONFIG['api_base'].rstrip('/')}/chat/completions"
                 async with client.stream(
                     "POST",
-                    f"{AI_CONFIG['api_base'].rstrip('/')}/chat/completions",
+                    url,
                     headers={
                         "Authorization": f"Bearer {AI_CONFIG['api_key']}",
                         "Content-Type": "application/json"
@@ -557,32 +949,32 @@ async def chat_stream(request: ChatRequest, user: dict = Depends(get_current_use
                         "messages": messages,
                         "stream": True,
                         "temperature": 0.7,
-                        "max_tokens": 4096
+                        "max_tokens": 65536
                     }
                 ) as response:
                     if response.status_code != 200:
                         error_text = await response.aread()
-                        yield f"data: {json.dumps({'error': f'API错误: {response.status_code}'})}\n\n"
+                        yield f"data: {json.dumps({'error': f'API错误: {response.status_code}'})}"
                         return
                     
                     async for line in response.aiter_lines():
-                        if line.startswith("data: "):
-                            data = line[6:]
+                        if line.startswith("data:"):
+                            data = line[5:].lstrip()
                             if data == "[DONE]":
                                 break
                             try:
                                 chunk = json.loads(data)
                                 if chunk.get("choices") and len(chunk["choices"]) > 0:
                                     delta = chunk["choices"][0].get("delta", {})
-                                    content = delta.get("content", "")
+                                    content = delta.get("content") or delta.get("reasoning_content", "")
                                     if content:
                                         yield f"data: {json.dumps({'content': content})}\n\n"
                             except json.JSONDecodeError:
                                 pass
         except httpx.TimeoutException:
-            yield f"data: {json.dumps({'error': '请求超时，请重试'})}\n\n"
+            yield f"data: {json.dumps({'error': '请求超时，请重试'})}"
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'error': str(e)})}"
         
         yield "data: [DONE]\n\n"
     

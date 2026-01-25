@@ -177,6 +177,7 @@ const statusMessage = ref('')
 const statusType = ref('')
 const apiConfigured = ref(false)
 const currentProvider = ref('')
+const providerKeys = ref({})  // 存储各服务商的API Key状态
 
 const providers = {
   siliconflow: {
@@ -270,6 +271,18 @@ function onProviderChange() {
   if (p) {
     apiBase.value = p.baseUrl
     model.value = p.models[0]?.value || ''
+    // 显示该服务商已保存的API Key状态
+    const savedKey = providerKeys.value[provider.value]
+    if (savedKey) {
+      keyPlaceholder.value = `当前: ${savedKey}`
+      statusMessage.value = '✅ 该服务商已配置API Key'
+      statusType.value = 'success'
+    } else {
+      keyPlaceholder.value = '请输入 API Key'
+      statusMessage.value = '⚠️ 该服务商尚未配置API Key'
+      statusType.value = 'warning'
+    }
+    apiKey.value = ''  // 清空输入框
   }
 }
 
@@ -296,6 +309,9 @@ function enterChat() {
 async function loadConfig() {
   try {
     const res = await axios.get('/api/config')
+    // 保存所有服务商的API Key状态
+    providerKeys.value = res.data.provider_keys || {}
+    
     if (res.data.api_key) keyPlaceholder.value = `当前: ${res.data.api_key}`
     apiBase.value = res.data.api_base || 'https://api.siliconflow.cn/v1'
     model.value = res.data.model || 'deepseek-ai/DeepSeek-V3'
@@ -318,14 +334,18 @@ async function loadConfig() {
 }
 
 async function saveConfig() {
-  if (!apiKey.value.trim()) { 
+  // 如果没有输入新的API Key，但该服务商已有保存的Key，则允许只切换模型
+  const hasExistingKey = !!providerKeys.value[provider.value]
+  if (!apiKey.value.trim() && !hasExistingKey) { 
     statusMessage.value = '❌ 请输入 API Key'
     statusType.value = 'error'
     return 
   }
   try {
+    // 如果没输入新Key但有旧Key，发送特殊标记让后端使用已存储的Key
+    const keyToSave = apiKey.value.trim() || '__USE_EXISTING__'
     const res = await axios.post('/api/config', { 
-      api_key: apiKey.value, 
+      api_key: keyToSave, 
       api_base: apiBase.value, 
       model: model.value,
       provider: provider.value
@@ -333,7 +353,10 @@ async function saveConfig() {
     if (res.data.success) {
       statusMessage.value = '✅ 配置保存成功！'
       statusType.value = 'success'
-      keyPlaceholder.value = `当前: ***${apiKey.value.slice(-4)}`
+      if (apiKey.value.trim()) {
+        keyPlaceholder.value = `当前: ***${apiKey.value.slice(-4)}`
+        providerKeys.value[provider.value] = `***${apiKey.value.slice(-4)}`
+      }
       apiKey.value = ''
       apiConfigured.value = true
       currentProvider.value = providers[provider.value]?.name || provider.value

@@ -1,10 +1,12 @@
 """
-数据库模块 - MySQL持久化存储
+数据库模块 - MySQL持久化存储（带连接池）
 """
 import pymysql
 from pymysql.cursors import DictCursor
 import json
 import os
+import threading
+import queue
 from datetime import datetime
 from contextlib import contextmanager
 from dotenv import load_dotenv
@@ -22,14 +24,114 @@ DB_CONFIG = {
     'cursorclass': DictCursor
 }
 
+# ========== 简易连接池实现 ==========
+class ConnectionPool:
+    """简易MySQL连接池"""
+    
+    def __init__(self, config: dict, pool_size: int = 5, max_overflow: int = 10):
+        self.config = config
+        self.pool_size = pool_size
+        self.max_overflow = max_overflow
+        self._pool = queue.Queue(maxsize=pool_size)
+        self._current_size = 0
+        self._lock = threading.Lock()
+        
+        # 预创建连接
+        for _ in range(pool_size):
+            try:
+                conn = self._create_connection()
+                self._pool.put(conn, block=False)
+                self._current_size += 1
+            except:
+                break
+    
+    def _create_connection(self):
+        """创建新连接"""
+        return pymysql.connect(**self.config)
+    
+    def _validate_connection(self, conn):
+        """验证连接是否有效"""
+        try:
+            conn.ping(reconnect=True)
+            return True
+        except:
+            return False
+    
+    def get_connection(self):
+        """获取连接"""
+        # 尝试从池中获取
+        try:
+            conn = self._pool.get(block=False)
+            if self._validate_connection(conn):
+                return conn
+            # 连接无效，创建新的
+            conn = self._create_connection()
+            return conn
+        except queue.Empty:
+            pass
+        
+        # 池为空，尝试创建新连接
+        with self._lock:
+            if self._current_size < self.pool_size + self.max_overflow:
+                self._current_size += 1
+                return self._create_connection()
+        
+        # 等待连接释放
+        conn = self._pool.get(block=True, timeout=30)
+        if self._validate_connection(conn):
+            return conn
+        return self._create_connection()
+    
+    def release_connection(self, conn):
+        """释放连接回池"""
+        try:
+            if self._validate_connection(conn):
+                self._pool.put(conn, block=False)
+            else:
+                with self._lock:
+                    self._current_size -= 1
+                try:
+                    conn.close()
+                except:
+                    pass
+        except queue.Full:
+            # 池满，直接关闭
+            with self._lock:
+                self._current_size -= 1
+            try:
+                conn.close()
+            except:
+                pass
+    
+    def close_all(self):
+        """关闭所有连接"""
+        while not self._pool.empty():
+            try:
+                conn = self._pool.get(block=False)
+                conn.close()
+            except:
+                pass
+        self._current_size = 0
+
+# 全局连接池
+_connection_pool = None
+
+def get_pool():
+    """获取全局连接池"""
+    global _connection_pool
+    if _connection_pool is None:
+        _connection_pool = ConnectionPool(DB_CONFIG, pool_size=5, max_overflow=10)
+    return _connection_pool
+
 def get_db():
-    """获取数据库连接"""
-    return pymysql.connect(**DB_CONFIG)
+    """获取数据库连接（从连接池）"""
+    return get_pool().get_connection()
 
 @contextmanager
 def get_db_cursor():
-    """数据库游标上下文管理器"""
-    conn = get_db()
+    """数据库游标上下文管理器（使用连接池）"""
+    pool = get_pool()
+    conn = pool.get_connection()
     try:
         cursor = conn.cursor()
         yield cursor
@@ -39,7 +141,7 @@ def get_db_cursor():
         raise e
     finally:
         cursor.close()
-        conn.close()
+        pool.release_connection(conn)
 
 def init_db():
     """初始化数据库表"""
@@ -160,6 +262,24 @@ def init_db():
             CREATE TABLE IF NOT EXISTS config (
                 `key` VARCHAR(100) PRIMARY KEY,
                 value TEXT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ''')
+        
+        # 面试题表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS interview_questions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                article_id VARCHAR(50) NOT NULL,
+                question TEXT NOT NULL,
+                reference_answer LONGTEXT,
+                user_answer LONGTEXT,
+                score INT,
+                feedback LONGTEXT,
+                user VARCHAR(100) NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                answered_at DATETIME,
+                INDEX idx_article (article_id),
+                INDEX idx_user (user)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ''')
         
@@ -332,9 +452,14 @@ def create_task(task_data):
             task_data.get('created_at', datetime.now())
         ))
 
+ALLOWED_TASK_FIELDS = {'status', 'current_step', 'completed', 'total', 'error'}
+
 def update_task(task_id, **kwargs):
+    """更新任务状态（防SQL注入）"""
     with get_db_cursor() as cursor:
         for key, value in kwargs.items():
+            if key not in ALLOWED_TASK_FIELDS:
+                continue
             cursor.execute(f'UPDATE tasks SET {key} = %s WHERE id = %s', (value, task_id))
 
 # ========== 笔记操作 ==========
@@ -357,6 +482,40 @@ def create_note(article_id, question, answer, user):
 def delete_note(note_id, user):
     with get_db_cursor() as cursor:
         cursor.execute('DELETE FROM notes WHERE id = %s AND user = %s', (note_id, user))
+
+# ========== 面试题操作 ==========
+def get_interview_questions(article_id, user):
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            'SELECT * FROM interview_questions WHERE article_id = %s AND user = %s ORDER BY created_at DESC',
+            (article_id, user)
+        )
+        return cursor.fetchall()
+
+def create_interview_question(article_id, question, reference_answer, user):
+    with get_db_cursor() as cursor:
+        cursor.execute('''
+            INSERT INTO interview_questions (article_id, question, reference_answer, user, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (article_id, question, reference_answer, user, datetime.now()))
+        return cursor.lastrowid
+
+def update_interview_answer(question_id, user_answer, score, feedback, user):
+    with get_db_cursor() as cursor:
+        cursor.execute('''
+            UPDATE interview_questions 
+            SET user_answer = %s, score = %s, feedback = %s, answered_at = %s 
+            WHERE id = %s AND user = %s
+        ''', (user_answer, score, feedback, datetime.now(), question_id, user))
+
+def delete_interview_question(question_id, user):
+    with get_db_cursor() as cursor:
+        cursor.execute('DELETE FROM interview_questions WHERE id = %s AND user = %s', (question_id, user))
+
+def get_interview_question(question_id, user):
+    with get_db_cursor() as cursor:
+        cursor.execute('SELECT * FROM interview_questions WHERE id = %s AND user = %s', (question_id, user))
+        return cursor.fetchone()
 
 # ========== 配置操作 ==========
 def get_config(key):

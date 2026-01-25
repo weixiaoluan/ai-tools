@@ -131,7 +131,15 @@ async function handleLogin() {
       emit('login', loginData)
     }
     else error.value = res.data.message || '登录失败'
-  } catch (e) { error.value = e.response?.data?.detail || '登录失败' }
+  } catch (e) {
+    if (e.code === 'ERR_NETWORK' || !e.response) {
+      error.value = '网络连接失败，请检查后端服务是否启动'
+    } else if (e.response?.status === 500) {
+      error.value = '服务器错误：数据库可能未连接，请联系管理员'
+    } else {
+      error.value = e.response?.data?.detail || e.response?.data?.message || '登录失败，请稍后重试'
+    }
+  }
   loading.value = false
 }
 </script>
