@@ -173,6 +173,7 @@ const taskPanelExpanded = ref(true)
 
 const currentArticle = ref(null)
 const currentDocument = ref(null)
+const contentLoading = ref(false)
 
 // 大纲相关
 const showOutlineModal = ref(false)
@@ -365,21 +366,38 @@ function pollTaskStatus(taskId, notifIdx, type) {
 }
 
 async function viewArticle(id) {
+  // 先切换视图，显示加载状态
+  previousToolView.value = toolView.value
+  currentArticle.value = null
+  contentLoading.value = true
+  toolView.value = 'article-detail'
+  
   try {
     const res = await axios.get(`/api/articles/${id}`)
     currentArticle.value = res.data.article
-    previousToolView.value = toolView.value
-    toolView.value = 'article-detail'
-  } catch (e) { modal.error('加载失败') }
+  } catch (e) { 
+    modal.error('加载失败')
+    toolView.value = previousToolView.value
+  } finally {
+    contentLoading.value = false
+  }
 }
 
 async function viewDocument(id) {
+  previousToolView.value = toolView.value
+  currentDocument.value = null
+  contentLoading.value = true
+  toolView.value = 'document-detail'
+  
   try {
     const res = await axios.get(`/api/documents/${id}`)
     currentDocument.value = res.data.document
-    previousToolView.value = toolView.value
-    toolView.value = 'document-detail'
-  } catch (e) { modal.error('加载失败') }
+  } catch (e) { 
+    modal.error('加载失败')
+    toolView.value = previousToolView.value
+  } finally {
+    contentLoading.value = false
+  }
 }
 
 async function checkApiStatus() {

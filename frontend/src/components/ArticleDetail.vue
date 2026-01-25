@@ -2,7 +2,13 @@
   <div class="view article-detail-view">
     <button class="btn-back" @click="$emit('back')">← 返回列表</button>
     
-    <div class="document-layout">
+    <!-- 加载状态 -->
+    <div v-if="!article" class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>正在加载文章...</p>
+    </div>
+    
+    <div v-else class="document-layout">
       <!-- 目录侧边栏 -->
       <aside class="document-toc" :class="{ 'toc-open': tocOpen }" v-if="tocItems.length > 0">
         <div class="toc-header">
@@ -523,6 +529,27 @@ onMounted(() => { extractToc(); loadNotes(); loadInterviewQuestions() })
 </script>
 
 <style scoped>
+/* 加载状态 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+}
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-state p { font-size: 15px; }
+
 .article-detail-view { max-width: 1200px; position: relative; }
 .article-content { flex: 1; min-width: 0; }
 .article-title { font-size: 1.75rem; font-weight: 700; margin-bottom: 16px; color: var(--text-primary); line-height: 1.4; }

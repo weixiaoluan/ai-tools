@@ -108,7 +108,15 @@ async function loadArticles() {
 
 function formatDate(str) {
   if (!str) return ''
-  return new Date(str).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+  // 处理ISO格式时间，确保正确解析为本地时间
+  const date = new Date(str)
+  if (isNaN(date.getTime())) return str
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  return `${year}/${month}/${day} ${hour}:${minute}`
 }
 
 function toggleSelect(id) {
@@ -324,6 +332,8 @@ onMounted(loadArticles)
   color: #1e293b;
   margin-bottom: 6px;
   transition: color 0.2s;
+  text-decoration: none !important;
+  border: none;
 }
 
 .content-card:hover .card-content h3 {

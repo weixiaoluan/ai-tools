@@ -226,7 +226,7 @@ select.input-field { cursor: pointer; }
 .content-card:hover { border-color: var(--primary-light); box-shadow: var(--shadow-lg); }
 .content-card:hover::after { opacity: 1; }
 
-.content-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
+.content-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); text-decoration: none !important; }
 .content-card p { font-size: 14px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
 
 .content-meta { display: flex; gap: 16px; font-size: 13px; color: var(--text-muted); flex-wrap: wrap; align-items: center; }
