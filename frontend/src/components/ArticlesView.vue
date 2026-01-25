@@ -359,7 +359,10 @@ onMounted(loadArticles)
 .card-content { 
   flex: 1; 
   min-width: 0; 
-  cursor: pointer; 
+  cursor: pointer;
+  border: none !important;
+  border-top: none !important;
+  box-shadow: none !important;
 }
 
 .card-content h3 {
@@ -367,20 +370,16 @@ onMounted(loadArticles)
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 6px;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
   transition: color 0.2s;
   text-decoration: none !important;
-  text-decoration-line: none !important;
-  text-decoration-style: none !important;
   border: none !important;
+  border-top: none !important;
   border-bottom: none !important;
   box-shadow: none !important;
-  background-image: none !important;
-  background: transparent !important;
-  -webkit-text-decoration: none !important;
-  -webkit-text-decoration-line: none !important;
+  background: none !important;
   outline: none !important;
-  text-underline-offset: 0 !important;
-  text-decoration-skip-ink: none !important;
 }
 
 .content-card:hover .card-content h3 {
