@@ -530,9 +530,14 @@ def set_config(key, value):
                       (key, value, value))
 
 def get_all_config():
-    with get_db_cursor() as cursor:
-        cursor.execute('SELECT * FROM config')
-        return {row['key']: row['value'] for row in cursor.fetchall()}
+    try:
+        with get_db_cursor() as cursor:
+            cursor.execute('SELECT * FROM config')
+            rows = cursor.fetchall()
+            return {row['key']: row['value'] for row in rows} if rows else {}
+    except Exception as e:
+        print(f"获取配置失败: {e}")
+        return {}
 
 # ========== 对话记录操作 ==========
 def get_conversations(user):

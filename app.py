@@ -62,7 +62,11 @@ def generate_token(username: str) -> str:
     return hashlib.sha256(f"{username}{datetime.now().isoformat()}{uuid.uuid4()}".encode()).hexdigest()
 
 def load_ai_config():
-    config = db.get_all_config()
+    try:
+        config = db.get_all_config() or {}
+    except Exception as e:
+        print(f"加载配置失败: {e}")
+        config = {}
     AI_CONFIG["api_key"] = config.get("api_key", "")
     AI_CONFIG["api_base"] = config.get("api_base", "https://api.siliconflow.cn/v1")
     AI_CONFIG["model"] = config.get("model", "deepseek-ai/DeepSeek-V3")
