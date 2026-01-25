@@ -22,7 +22,7 @@
           <span class="checkmark"></span>
         </label>
         <div class="card-content" @click="handleClick(article.id)">
-          <h3 style="text-decoration: none !important; text-decoration-line: none !important; -webkit-text-decoration: none !important;">{{ article.title }}</h3>
+          <h3 class="article-title">{{ article.title }}</h3>
           <p>{{ article.topic || '暂无描述' }}</p>
           <div class="content-meta">
             <span class="tag">{{ article.type === 'chapter' ? '章节' : '文章' }}</span>
@@ -365,22 +365,31 @@ onMounted(loadArticles)
   box-shadow: none !important;
 }
 
-.card-content h3 {
+.card-content h3,
+.card-content .article-title {
   font-size: 16px;
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 6px;
-  margin-top: 0 !important;
-  padding-top: 0 !important;
+  margin-top: 0;
+  padding: 0;
   transition: color 0.2s;
+  /* 使用display:inline-block打破text-decoration继承 */
+  display: inline-block;
+  width: 100%;
+  /* 移除所有可能的text-decoration */
   text-decoration: none !important;
   text-decoration-line: none !important;
+  -webkit-text-decoration: none !important;
   -webkit-text-decoration-line: none !important;
-  text-decoration-style: solid !important;
   text-decoration-color: transparent !important;
+  /* 移除边框和阴影 */
   border: none !important;
   box-shadow: none !important;
-  background: none !important;
+  background: transparent !important;
+  /* 确保独立的层叠上下文 */
+  position: relative;
+  z-index: 1;
 }
 
 .content-card:hover .card-content h3 {
