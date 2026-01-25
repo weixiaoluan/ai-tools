@@ -514,10 +514,25 @@ onMounted(loadArticles)
   .card-content h3 {
     font-size: 15px;
     text-decoration: none !important;
+    text-decoration-line: none !important;
     border: none !important;
     border-bottom: none !important;
     box-shadow: none !important;
+    background: none !important;
     background-image: none !important;
+    -webkit-text-decoration: none !important;
+  }
+  
+  .card-content h3::before,
+  .card-content h3::after {
+    display: none !important;
+    content: none !important;
+  }
+  
+  .content-card::before,
+  .content-card::after {
+    display: none !important;
+    content: none !important;
   }
   
   .card-content p {
@@ -545,6 +560,30 @@ onMounted(loadArticles)
   .content-card {
     padding: 14px;
     flex-wrap: wrap;
+  }
+  
+  .content-card::before,
+  .content-card::after {
+    display: none !important;
+    content: none !important;
+  }
+  
+  .card-content h3 {
+    text-decoration: none !important;
+    text-decoration-line: none !important;
+    border: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+    background: none !important;
+    background-image: none !important;
+    -webkit-text-decoration: none !important;
+    position: relative;
+  }
+  
+  .card-content h3::before,
+  .card-content h3::after {
+    display: none !important;
+    content: none !important;
   }
   
   .checkbox-wrapper {
