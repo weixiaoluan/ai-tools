@@ -29,6 +29,8 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+a, a:visited, a:hover, a:active { text-decoration: none !important; }
+h1, h2, h3, h4, h5, h6 { text-decoration: none !important; border-bottom: none !important; }
 
 html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 

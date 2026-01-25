@@ -16,12 +16,12 @@
         <p>暂无文章，点击上方按钮创建第一篇</p>
       </div>
       
-      <div v-for="article in articles" :key="article.id" :class="['content-card', { selected: selectedIds.includes(article.id) }]">
+      <div v-for="article in articles" :key="article.id" :class="['content-card', { selected: selectedIds.includes(article.id), loading: clickLoading === article.id }]">
         <label class="checkbox-wrapper" @click.stop>
           <input type="checkbox" :checked="selectedIds.includes(article.id)" @change="toggleSelect(article.id)" />
           <span class="checkmark"></span>
         </label>
-        <div class="card-content" @click="$emit('view', article.id)">
+        <div class="card-content" @click="handleClick(article.id)">
           <h3>{{ article.title }}</h3>
           <p>{{ article.topic || '暂无描述' }}</p>
           <div class="content-meta">
@@ -88,7 +88,18 @@ import axios from 'axios'
 import { useModal } from '../composables/useModal'
 
 const modal = useModal()
+const clickLoading = ref(null)
+
+function handleClick(id) {
+  clickLoading.value = id
+  emit('view', id)
+}
+
+const props = defineProps(['view', 'new'])
+
 const emit = defineEmits(['view', 'new'])
+
+// 点击加载状态
 
 const articles = ref([])
 const selectedIds = ref([])
@@ -275,6 +286,31 @@ onMounted(loadArticles)
   box-shadow: 0 4px 16px rgba(99, 102, 241, 0.15);
 }
 
+.content-card.loading {
+  opacity: 0.7;
+  pointer-events: none;
+  position: relative;
+}
+
+.content-card.loading::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  z-index: 10;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* 复选框 */
 .checkbox-wrapper { 
   position: relative; 
@@ -337,6 +373,9 @@ onMounted(loadArticles)
   border-bottom: none !important;
   box-shadow: none !important;
   background-image: none !important;
+  background: transparent !important;
+  -webkit-text-decoration: none !important;
+  -webkit-text-decoration-line: none !important;
 }
 
 .content-card:hover .card-content h3 {
