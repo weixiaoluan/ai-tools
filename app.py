@@ -896,7 +896,7 @@ async def web_search(query: str) -> str:
     try:
         import urllib.parse
         search_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(search_url, headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             })
@@ -904,14 +904,27 @@ async def web_search(query: str) -> str:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.text, 'html.parser')
                 results = []
-                for result in soup.select('.result')[:5]:
+                for result in soup.select('.result')[:10]:  # 获取10条结果
                     title_elem = result.select_one('.result__title')
                     snippet_elem = result.select_one('.result__snippet')
                     link_elem = result.select_one('.result__a')
                     if title_elem and snippet_elem:
                         title = title_elem.get_text(strip=True)
                         snippet = snippet_elem.get_text(strip=True)
-                        url = link_elem.get('href', '') if link_elem else ''
+                        # 从DuckDuckGo重定向URL中提取真实URL
+                        raw_url = link_elem.get('href', '') if link_elem else ''
+                        url = ''
+                        if raw_url:
+                            if 'uddg=' in raw_url:
+                                # 解析 //duckduckgo.com/l/?uddg=https%3A%2F%2F... 格式
+                                try:
+                                    parsed = urllib.parse.urlparse(raw_url)
+                                    params = urllib.parse.parse_qs(parsed.query)
+                                    url = params.get('uddg', [''])[0]
+                                except:
+                                    url = raw_url
+                            elif raw_url.startswith('http'):
+                                url = raw_url
                         # 格式: - 标题 (URL): 内容
                         if url:
                             results.append(f"- {title} ({url}): {snippet}")

@@ -138,9 +138,10 @@
             </div>
           </template>
           
-          <!-- 联网搜索结果（可折叠） -->
-          <div v-if="searchResults" class="ds-msg ds-msg-ai">
-            <div class="ds-search-results">
+          <!-- 实时思考中状态 -->
+          <div v-if="searchResults || (isThinking && enableDeepThink) || streamingContent || streamingAnswer" class="ds-msg ds-msg-ai">
+            <!-- 联网搜索结果（可折叠）- 放在回答最上面 -->
+            <div v-if="searchResults" class="ds-search-results">
               <div class="ds-search-header" @click="searchResultsExpanded = !searchResultsExpanded">
                 <svg :class="['ds-search-arrow', { expanded: searchResultsExpanded }]" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="9 18 15 12 9 6"></polyline>
@@ -163,10 +164,6 @@
                 </div>
               </div>
             </div>
-          </div>
-          
-          <!-- 实时思考中状态 -->
-          <div v-if="(isThinking && enableDeepThink) || streamingContent || streamingAnswer" class="ds-msg ds-msg-ai">
             <!-- 实时思考过程（可折叠） -->
             <div v-if="streamingContent && enableDeepThink" class="ds-thinking ds-thinking-active">
               <div class="ds-thinking-header" @click="streamingThinkingExpanded = !streamingThinkingExpanded">
