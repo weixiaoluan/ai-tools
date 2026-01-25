@@ -94,7 +94,9 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { marked } from 'marked'
 import axios from 'axios'
+import { useModal } from '../composables/useModal'
 
+const modal = useModal()
 const props = defineProps({ articleId: String })
 defineEmits(['login'])
 
@@ -147,9 +149,9 @@ function shareToQQ() {
   window.open(url, '_blank', 'width=600,height=500')
 }
 
-function shareToWecom() {
-  copyLink()
-  alert('链接已复制，请在企业微信中粘贴分享')
+async function shareToWecom() {
+  await copyLink()
+  modal.success('链接已复制，请在企业微信中粘贴分享', '分享')
 }
 
 function shareToDingtalk() {
@@ -157,12 +159,13 @@ function shareToDingtalk() {
   window.open(url, '_blank', 'width=600,height=500')
 }
 
-function copyLink() {
-  navigator.clipboard.writeText(currentUrl.value).then(() => {
-    alert('链接已复制到剪贴板')
-  }).catch(() => {
-    prompt('请手动复制链接：', currentUrl.value)
-  })
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(currentUrl.value)
+    modal.success('链接已复制到剪贴板', '复制成功')
+  } catch {
+    await modal.prompt('请手动复制链接：', currentUrl.value, '复制链接')
+  }
 }
 
 onMounted(loadArticle)

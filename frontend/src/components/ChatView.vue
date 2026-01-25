@@ -303,7 +303,9 @@ import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import axios from 'axios'
+import { useModal } from '../composables/useModal'
 
+const modal = useModal()
 const emit = defineEmits(['back'])
 
 // 状态
@@ -532,7 +534,8 @@ async function saveConversation() {
 }
 
 async function deleteConv(convId) {
-  if (!confirm('确定删除这个对话吗？')) return
+  const confirmed = await modal.confirm('确定删除这个对话吗？', '删除确认')
+  if (!confirmed) return
   try {
     await axios.delete(`/api/conversations/${convId}`)
     if (currentConvId.value === convId) {

@@ -85,7 +85,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { useModal } from '../composables/useModal'
 
+const modal = useModal()
 const emit = defineEmits(['view', 'new'])
 
 const articles = ref([])
@@ -125,7 +127,7 @@ async function saveEdit() {
     await axios.put(`/api/articles/${editForm.value.id}`, { title: editForm.value.title, content: editForm.value.content })
     showEditModal.value = false
     loadArticles()
-  } catch (e) { alert('保存失败: ' + (e.response?.data?.detail || e.message)) }
+  } catch (e) { modal.error('保存失败: ' + (e.response?.data?.detail || e.message)) }
 }
 
 function confirmDelete(article) {
@@ -151,7 +153,7 @@ async function doDelete() {
     }
     showDeleteModal.value = false
     loadArticles()
-  } catch (e) { alert('删除失败: ' + (e.response?.data?.detail || e.message)) }
+  } catch (e) { modal.error('删除失败: ' + (e.response?.data?.detail || e.message)) }
 }
 
 onMounted(loadArticles)

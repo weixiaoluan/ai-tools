@@ -218,7 +218,9 @@ import { ref, computed, watch } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import axios from 'axios'
+import { useModal } from '../composables/useModal'
 
+const modal = useModal()
 const props = defineProps({ document: Object })
 defineEmits(['back'])
 
@@ -324,7 +326,7 @@ async function saveAsNote() {
     await axios.post('/api/notes', { article_id: articleId, question: currentQuestion.value, answer: currentAnswer.value })
     await loadNotes()
     clearAnswer()
-  } catch (e) { alert('保存失败') }
+  } catch (e) { modal.error('保存失败') }
 }
 
 function clearAnswer() {
@@ -333,11 +335,12 @@ function clearAnswer() {
 }
 
 async function deleteNote(noteId) {
-  if (!confirm('确定删除这条笔记吗？')) return
+  const confirmed = await modal.confirm('确定删除这条笔记吗？', '删除确认')
+  if (!confirmed) return
   try {
     await axios.delete(`/api/notes/${noteId}`)
     await loadNotes()
-  } catch (e) { alert('删除失败') }
+  } catch (e) { modal.error('删除失败') }
 }
 
 // 分享功能
@@ -345,9 +348,9 @@ function getShareUrl() {
   return `${window.location.origin}/article/${props.document?.id}-${activeChapter.value}`
 }
 
-function shareToWechat() {
-  copyShareLink()
-  alert('链接已复制，请在微信中粘贴分享')
+async function shareToWechat() {
+  await copyShareLink()
+  modal.success('链接已复制，请在微信中粘贴分享', '分享')
 }
 
 function shareToQQ() {
@@ -356,9 +359,9 @@ function shareToQQ() {
   window.open(`https://connect.qq.com/widget/shareqq/index.html?url=${url}&title=${title}`, '_blank')
 }
 
-function shareToWecom() {
-  copyShareLink()
-  alert('链接已复制，请在企业微信中粘贴分享')
+async function shareToWecom() {
+  await copyShareLink()
+  modal.success('链接已复制，请在企业微信中粘贴分享', '分享')
 }
 
 function shareToDingtalk() {
@@ -367,19 +370,20 @@ function shareToDingtalk() {
   window.open(`https://page.dingtalk.com/wow/dingtalk/act/shareurl?url=${url}&title=${title}`, '_blank')
 }
 
-function copyShareLink() {
+async function copyShareLink() {
   const url = getShareUrl()
-  navigator.clipboard.writeText(url).then(() => {
-    alert('链接已复制到剪贴板')
-  }).catch(() => {
+  try {
+    await navigator.clipboard.writeText(url)
+    modal.success('链接已复制到剪贴板', '复制成功')
+  } catch {
     const input = document.createElement('input')
     input.value = url
     document.body.appendChild(input)
     input.select()
     document.execCommand('copy')
     document.body.removeChild(input)
-    alert('链接已复制到剪贴板')
-  })
+    modal.success('链接已复制到剪贴板', '复制成功')
+  }
 }
 
 watch(() => props.document, () => {

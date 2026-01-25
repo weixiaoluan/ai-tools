@@ -76,7 +76,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { useModal } from '../composables/useModal'
 
+const modal = useModal()
 const emit = defineEmits(['view', 'new', 'viewArticle'])
 
 const documents = ref([])
@@ -136,7 +138,7 @@ async function doDelete() {
     }
     showDeleteModal.value = false
     loadDocuments()
-  } catch (e) { alert('删除失败: ' + (e.response?.data?.detail || e.message)) }
+  } catch (e) { modal.error('删除失败: ' + (e.response?.data?.detail || e.message)) }
 }
 
 onMounted(loadDocuments)

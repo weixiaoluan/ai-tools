@@ -135,6 +135,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { useModal } from './composables/useModal'
 import PlatformHome from './components/PlatformHome.vue'
 import HomeView from './components/HomeView.vue'
 import ArticlesView from './components/ArticlesView.vue'
@@ -146,6 +147,8 @@ import LoginView from './components/LoginView.vue'
 import RegisterView from './components/RegisterView.vue'
 import PublicArticle from './components/PublicArticle.vue'
 import ChatView from './components/ChatView.vue'
+
+const modal = useModal()
 
 const navItems = [
   { id: 'home', icon: '🏠', label: '首页' },
@@ -310,7 +313,7 @@ async function regenerateOutline() {
   try {
     const res = await axios.post('/api/regenerate/outline', { outline_id: pendingOutline.value.id, feedback: outlineFeedback.value, chapters: pendingOutline.value.chapters })
     if (res.data.success) { pendingOutline.value = res.data.outline; outlineFeedback.value = '' }
-  } catch (e) { alert('重新生成失败: ' + (e.response?.data?.detail || e.message)) }
+  } catch (e) { modal.error('重新生成失败: ' + (e.response?.data?.detail || e.message)) }
   outlineLoading.value = false
 }
 
@@ -367,7 +370,7 @@ async function viewArticle(id) {
     currentArticle.value = res.data.article
     previousToolView.value = toolView.value
     toolView.value = 'article-detail'
-  } catch (e) { alert('加载失败') }
+  } catch (e) { modal.error('加载失败') }
 }
 
 async function viewDocument(id) {
@@ -376,7 +379,7 @@ async function viewDocument(id) {
     currentDocument.value = res.data.document
     previousToolView.value = toolView.value
     toolView.value = 'document-detail'
-  } catch (e) { alert('加载失败') }
+  } catch (e) { modal.error('加载失败') }
 }
 
 async function checkApiStatus() {

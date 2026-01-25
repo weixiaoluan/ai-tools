@@ -244,6 +244,9 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import axios from 'axios'
+import { useModal } from '../composables/useModal'
+
+const modal = useModal()
 
 const props = defineProps({ article: Object })
 defineEmits(['back'])
@@ -352,7 +355,7 @@ async function saveAsNote() {
     await axios.post('/api/notes', { article_id: props.article.id, question: currentQuestion.value, answer: currentAnswer.value })
     await loadNotes()
     clearAnswer()
-  } catch (e) { alert('保存失败') }
+  } catch (e) { modal.error('保存失败') }
 }
 
 function clearAnswer() {
@@ -361,11 +364,12 @@ function clearAnswer() {
 }
 
 async function deleteNote(noteId) {
-  if (!confirm('确定删除这条笔记吗？')) return
+  const confirmed = await modal.confirm('确定删除这条笔记吗？', '删除确认')
+  if (!confirmed) return
   try {
     await axios.delete(`/api/notes/${noteId}`)
     await loadNotes()
-  } catch (e) { alert('删除失败') }
+  } catch (e) { modal.error('删除失败') }
 }
 
 // 分享功能
@@ -373,10 +377,10 @@ function getShareUrl() {
   return `${window.location.origin}/article/${props.article?.id}`
 }
 
-function shareToWechat() {
+async function shareToWechat() {
   // 微信需要通过二维码分享，这里复制链接提示用户
-  copyShareLink()
-  alert('链接已复制，请在微信中粘贴分享')
+  await copyShareLink()
+  modal.success('链接已复制，请在微信中粘贴分享', '分享')
 }
 
 function shareToQQ() {
@@ -385,9 +389,9 @@ function shareToQQ() {
   window.open(`https://connect.qq.com/widget/shareqq/index.html?url=${url}&title=${title}`, '_blank')
 }
 
-function shareToWecom() {
-  copyShareLink()
-  alert('链接已复制，请在企业微信中粘贴分享')
+async function shareToWecom() {
+  await copyShareLink()
+  modal.success('链接已复制，请在企业微信中粘贴分享', '分享')
 }
 
 function shareToDingtalk() {
@@ -396,11 +400,12 @@ function shareToDingtalk() {
   window.open(`https://page.dingtalk.com/wow/dingtalk/act/shareurl?url=${url}&title=${title}`, '_blank')
 }
 
-function copyShareLink() {
+async function copyShareLink() {
   const url = getShareUrl()
-  navigator.clipboard.writeText(url).then(() => {
-    alert('链接已复制到剪贴板')
-  }).catch(() => {
+  try {
+    await navigator.clipboard.writeText(url)
+    modal.success('链接已复制到剪贴板', '复制成功')
+  } catch {
     // 降级方案
     const input = document.createElement('input')
     input.value = url
@@ -408,8 +413,8 @@ function copyShareLink() {
     input.select()
     document.execCommand('copy')
     document.body.removeChild(input)
-    alert('链接已复制到剪贴板')
-  })
+    modal.success('链接已复制到剪贴板', '复制成功')
+  }
 }
 
 // 面试题功能
@@ -441,7 +446,7 @@ async function generateInterviewQuestions() {
     await axios.post('/api/interview/generate', { article_id: props.article.id, count: 5 })
     await loadInterviewQuestions()
   } catch (e) {
-    alert('生成面试题失败：' + (e.response?.data?.detail || e.message))
+    modal.error('生成面试题失败：' + (e.response?.data?.detail || e.message))
   }
   generatingQuestions.value = false
 }
@@ -458,7 +463,7 @@ async function submitAnswer(q) {
     q.score = res.data.score
     q.feedback = res.data.feedback
   } catch (e) {
-    alert('提交失败：' + (e.response?.data?.detail || e.message))
+    modal.error('提交失败：' + (e.response?.data?.detail || e.message))
   }
   q.answering = false
 }
@@ -484,18 +489,19 @@ async function regenerateQuestion(questionId) {
       }
     }
   } catch (e) {
-    alert('重新生成失败：' + (e.response?.data?.detail || e.message))
+    modal.error('重新生成失败：' + (e.response?.data?.detail || e.message))
   }
   q.regenerating = false
 }
 
 async function deleteQuestion(questionId) {
-  if (!confirm('确定删除这道面试题吗？')) return
+  const confirmed = await modal.confirm('确定删除这道面试题吗？', '删除确认')
+  if (!confirmed) return
   try {
     await axios.delete(`/api/interview/${questionId}`)
     interviewQuestions.value = interviewQuestions.value.filter(q => q.id !== questionId)
   } catch (e) {
-    alert('删除失败：' + (e.response?.data?.detail || e.message))
+    modal.error('删除失败：' + (e.response?.data?.detail || e.message))
   }
 }
 
