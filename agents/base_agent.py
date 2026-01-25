@@ -66,6 +66,11 @@ class BaseAgent:
         """与Agent对话"""
         client = self._get_client()
         
+        # 确保配置有效
+        model = AI_CONFIG.get("model") or "deepseek-ai/DeepSeek-V3"
+        temp = temperature or AI_CONFIG.get("temperature", 0.7)
+        max_tokens = AI_CONFIG.get("max_tokens", 65536)
+        
         messages = [
             {"role": "system", "content": self.system_prompt},
             *self.conversation_history,
@@ -73,13 +78,15 @@ class BaseAgent:
         ]
         
         response = client.chat.completions.create(
-            model=AI_CONFIG["model"],
+            model=model,
             messages=messages,
-            temperature=temperature or AI_CONFIG["temperature"],
-            max_tokens=AI_CONFIG["max_tokens"]
+            temperature=temp,
+            max_tokens=max_tokens
         )
         
         # 兼容不同API的响应格式（content 或 reasoning_content）
+        if not response or not response.choices:
+            raise Exception("AI API返回空响应")
         msg = response.choices[0].message
         assistant_message = getattr(msg, 'content', None) or getattr(msg, 'reasoning_content', '') or ''
         

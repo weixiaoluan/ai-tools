@@ -716,12 +716,15 @@ async def generate_interview_questions(request: GenerateInterviewRequest, user: 
 
     try:
         import httpx
+        api_base = AI_CONFIG.get('api_base', 'https://api.siliconflow.cn/v1')
+        api_key = AI_CONFIG.get('api_key', '')
+        model = AI_CONFIG.get('model', 'deepseek-ai/DeepSeek-V3')
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
-                f"{AI_CONFIG['api_base']}/chat/completions",
-                headers={"Authorization": f"Bearer {AI_CONFIG['api_key']}", "Content-Type": "application/json"},
+                f"{api_base}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
                 json={
-                    "model": AI_CONFIG["model"],
+                    "model": model,
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.7,
                     "max_tokens": 4096
@@ -781,12 +784,15 @@ score为0-100分，feedback使用Markdown格式详细点评并给出更好的回
 
     try:
         import httpx
+        api_base = AI_CONFIG.get('api_base', 'https://api.siliconflow.cn/v1')
+        api_key = AI_CONFIG.get('api_key', '')
+        model = AI_CONFIG.get('model', 'deepseek-ai/DeepSeek-V3')
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"{AI_CONFIG['api_base']}/chat/completions",
-                headers={"Authorization": f"Bearer {AI_CONFIG['api_key']}", "Content-Type": "application/json"},
+                f"{api_base}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
                 json={
-                    "model": AI_CONFIG["model"],
+                    "model": model,
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.7,
                     "max_tokens": 2048
@@ -835,12 +841,15 @@ async def regenerate_interview_question(question_id: int, user: dict = Depends(g
 
     try:
         import httpx
+        api_base = AI_CONFIG.get('api_base', 'https://api.siliconflow.cn/v1')
+        api_key = AI_CONFIG.get('api_key', '')
+        model = AI_CONFIG.get('model', 'deepseek-ai/DeepSeek-V3')
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"{AI_CONFIG['api_base']}/chat/completions",
-                headers={"Authorization": f"Bearer {AI_CONFIG['api_key']}", "Content-Type": "application/json"},
+                f"{api_base}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
                 json={
-                    "model": AI_CONFIG["model"],
+                    "model": model,
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.8,
                     "max_tokens": 1024
@@ -939,17 +948,21 @@ async def chat_stream(request: ChatRequest, user: dict = Depends(get_current_use
             
             messages.append({"role": "user", "content": request.message})
             
+            api_base = AI_CONFIG.get('api_base', 'https://api.siliconflow.cn/v1')
+            api_key = AI_CONFIG.get('api_key', '')
+            model = AI_CONFIG.get('model', 'deepseek-ai/DeepSeek-V3')
+            
             async with httpx.AsyncClient(timeout=120.0) as client:
-                url = f"{AI_CONFIG['api_base'].rstrip('/')}/chat/completions"
+                url = f"{api_base.rstrip('/')}/chat/completions"
                 async with client.stream(
                     "POST",
                     url,
                     headers={
-                        "Authorization": f"Bearer {AI_CONFIG['api_key']}",
+                        "Authorization": f"Bearer {api_key}",
                         "Content-Type": "application/json"
                     },
                     json={
-                        "model": AI_CONFIG["model"],
+                        "model": model,
                         "messages": messages,
                         "stream": True,
                         "temperature": 0.7,
@@ -992,12 +1005,13 @@ async def generate_chat_image(request: ImageGenRequest, user: dict = Depends(get
     
     try:
         base_url = AI_CONFIG.get("api_base", "https://api.siliconflow.cn/v1")
+        api_key = AI_CONFIG.get("api_key", "")
         
         async with httpx.AsyncClient(timeout=90.0) as client:
             response = await client.post(
                 f"{base_url.rstrip('/')}/images/generations",
                 headers={
-                    "Authorization": f"Bearer {AI_CONFIG['api_key']}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json"
                 },
                 json={
