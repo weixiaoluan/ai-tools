@@ -374,12 +374,13 @@ onMounted(loadArticles)
   padding-top: 0 !important;
   transition: color 0.2s;
   text-decoration: none !important;
+  text-decoration-line: none !important;
+  -webkit-text-decoration-line: none !important;
+  text-decoration-style: solid !important;
+  text-decoration-color: transparent !important;
   border: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
   box-shadow: none !important;
   background: none !important;
-  outline: none !important;
 }
 
 .content-card:hover .card-content h3 {
