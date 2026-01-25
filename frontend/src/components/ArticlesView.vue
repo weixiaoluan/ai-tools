@@ -369,6 +369,8 @@ onMounted(loadArticles)
   margin-bottom: 6px;
   transition: color 0.2s;
   text-decoration: none !important;
+  text-decoration-line: none !important;
+  text-decoration-style: none !important;
   border: none !important;
   border-bottom: none !important;
   box-shadow: none !important;
@@ -376,6 +378,9 @@ onMounted(loadArticles)
   background: transparent !important;
   -webkit-text-decoration: none !important;
   -webkit-text-decoration-line: none !important;
+  outline: none !important;
+  text-underline-offset: 0 !important;
+  text-decoration-skip-ink: none !important;
 }
 
 .content-card:hover .card-content h3 {
