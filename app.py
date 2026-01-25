@@ -907,10 +907,16 @@ async def web_search(query: str) -> str:
                 for result in soup.select('.result')[:5]:
                     title_elem = result.select_one('.result__title')
                     snippet_elem = result.select_one('.result__snippet')
+                    link_elem = result.select_one('.result__a')
                     if title_elem and snippet_elem:
                         title = title_elem.get_text(strip=True)
                         snippet = snippet_elem.get_text(strip=True)
-                        results.append(f"- {title}: {snippet}")
+                        url = link_elem.get('href', '') if link_elem else ''
+                        # 格式: - 标题 (URL): 内容
+                        if url:
+                            results.append(f"- {title} ({url}): {snippet}")
+                        else:
+                            results.append(f"- {title}: {snippet}")
                 if results:
                     return "\n".join(results)
         return ""

@@ -138,19 +138,29 @@
             </div>
           </template>
           
-          <!-- 联网搜索结果 -->
+          <!-- 联网搜索结果（可折叠） -->
           <div v-if="searchResults" class="ds-msg ds-msg-ai">
             <div class="ds-search-results">
-              <div class="ds-search-header">
+              <div class="ds-search-header" @click="searchResultsExpanded = !searchResultsExpanded">
+                <svg :class="['ds-search-arrow', { expanded: searchResultsExpanded }]" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="2" y1="12" x2="22" y2="12"></line>
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                 </svg>
                 <span>联网搜索结果</span>
+                <span class="ds-search-count">{{ parseSearchResults(searchResults).length }}条来源</span>
               </div>
-              <div class="ds-search-body">
-                <pre>{{ searchResults }}</pre>
+              <div v-show="searchResultsExpanded" class="ds-search-body">
+                <div v-for="(item, idx) in parseSearchResults(searchResults)" :key="idx" class="ds-search-item">
+                  <a :href="item.url" target="_blank" class="ds-search-link">
+                    <span class="ds-search-idx">{{ idx + 1 }}</span>
+                    <span class="ds-search-title">{{ item.title }}</span>
+                  </a>
+                  <p class="ds-search-snippet">{{ item.snippet }}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -294,6 +304,7 @@ const streamingThinkingExpanded = ref(true)  // 思考过程默认展开
 const enableDeepThink = ref(false)   // 深度思考开关
 const enableWebSearch = ref(false)  // 联网搜索开关
 const searchResults = ref('')  // 联网搜索结果
+const searchResultsExpanded = ref(false)  // 搜索结果默认折叠
 const supportsDeepThink = ref(false)  // 模型是否支持深度思考
 
 // 聊天记录
@@ -560,6 +571,39 @@ function stopGeneration() {
   }
   loading.value = false
   stopThinkingTimer()
+}
+
+// 解析搜索结果文本为结构化数据
+function parseSearchResults(text) {
+  if (!text) return []
+  const results = []
+  // 匹配格式: - 标题 (URL): 内容  或  - 标题: 内容
+  const lines = text.split('\n')
+  let currentItem = null
+  
+  for (const line of lines) {
+    const match = line.match(/^-\s*(.+?)\s*\(?(https?:\/\/[^\s\)]+)?\)?:\s*(.*)$/)
+    if (match) {
+      if (currentItem) results.push(currentItem)
+      currentItem = {
+        title: match[1].trim(),
+        url: match[2] || '',
+        snippet: match[3].trim()
+      }
+    } else if (currentItem && line.trim()) {
+      currentItem.snippet += ' ' + line.trim()
+    }
+  }
+  if (currentItem) results.push(currentItem)
+  
+  // 尝试从标题中提取URL（如果URL为空）
+  return results.map(item => {
+    if (!item.url) {
+      // 尝试用标题搜索
+      item.url = `https://www.google.com/search?q=${encodeURIComponent(item.title)}`
+    }
+    return item
+  })
 }
 
 // 实时检测思考内容分隔点
@@ -1085,7 +1129,7 @@ onUnmounted(() => {
   margin-bottom: 12px;
   background: #f7f7f8;
   border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -1093,30 +1137,98 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 12px 16px;
   color: #1a9058;
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
   background: #f0fdf4;
-  border-bottom: 1px solid #e5e5e5;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.ds-search-header:hover {
+  background: #e6f7ed;
+}
+
+.ds-search-arrow {
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.ds-search-arrow.expanded {
+  transform: rotate(90deg);
 }
 
 .ds-search-header svg {
   stroke: #1a9058;
 }
 
-.ds-search-body {
-  padding: 12px 14px;
+.ds-search-count {
+  margin-left: auto;
   font-size: 12px;
-  color: #444;
-  line-height: 1.6;
+  color: #666;
+  font-weight: 400;
 }
 
-.ds-search-body pre {
+.ds-search-body {
+  padding: 0;
+  border-top: 1px solid #e5e5e5;
+}
+
+.ds-search-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.ds-search-item:last-child {
+  border-bottom: none;
+}
+
+.ds-search-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #1a73e8;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.ds-search-link:hover {
+  text-decoration: underline;
+}
+
+.ds-search-idx {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #e8f0fe;
+  color: #1a73e8;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.ds-search-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-search-snippet {
   margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: inherit;
+  font-size: 13px;
+  color: #555;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* 思考过程 - DeepSeek风格 */
