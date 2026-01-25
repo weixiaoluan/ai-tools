@@ -4,8 +4,9 @@ FastAPI后端服务
 """
 from fastapi import FastAPI, HTTPException, Depends, Request, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional, List
@@ -572,9 +573,20 @@ async def list_tasks(user: dict = Depends(get_current_user)):
     return {"tasks": tasks}
 
 # ========== 文章接口 ==========
+def serialize_datetime(obj):
+    """将datetime对象转换为ISO格式字符串"""
+    if isinstance(obj, dict):
+        return {k: serialize_datetime(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_datetime(item) for item in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    return obj
+
 @app.get("/api/articles")
 async def list_articles(user: dict = Depends(get_current_user)):
     articles = db.get_articles(user["username"])
+    articles = serialize_datetime(articles)
     return {"articles": articles}
 
 @app.get("/api/articles/{article_id}")
@@ -582,14 +594,14 @@ async def get_article(article_id: str, user: dict = Depends(get_current_user)):
     article = db.get_article(article_id)
     if not article:
         raise HTTPException(status_code=404, detail="文章不存在")
-    return {"article": article}
+    return {"article": serialize_datetime(article)}
 
 @app.get("/api/public/articles/{article_id}")
 async def get_public_article(article_id: str):
     article = db.get_article(article_id)
     if not article:
         raise HTTPException(status_code=404, detail="文章不存在")
-    return {"article": article}
+    return {"article": serialize_datetime(article)}
 
 @app.put("/api/articles/{article_id}")
 async def update_article(article_id: str, request: ArticleUpdateRequest, user: dict = Depends(get_current_user)):
