@@ -22,7 +22,7 @@
           <span class="checkmark"></span>
         </label>
         <div class="card-content" @click="handleClick(article.id)">
-          <h3>{{ article.title }}</h3>
+          <h3 style="text-decoration: none !important; text-decoration-line: none !important; -webkit-text-decoration: none !important;">{{ article.title }}</h3>
           <p>{{ article.topic || '暂无描述' }}</p>
           <div class="content-meta">
             <span class="tag">{{ article.type === 'chapter' ? '章节' : '文章' }}</span>
