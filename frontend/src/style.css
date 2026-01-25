@@ -226,7 +226,7 @@ select.input-field { cursor: pointer; }
 .content-card:hover { border-color: var(--primary-light); box-shadow: var(--shadow-lg); }
 .content-card:hover::after { opacity: 1; }
 
-.content-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); text-decoration: none !important; }
+.content-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); text-decoration: none !important; border: none !important; border-bottom: none !important; box-shadow: none !important; background-image: none !important; }
 .content-card p { font-size: 14px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
 
 .content-meta { display: flex; gap: 16px; font-size: 13px; color: var(--text-muted); flex-wrap: wrap; align-items: center; }
@@ -442,7 +442,7 @@ select.input-field { cursor: pointer; }
   .view-header h2 { font-size: 1.25rem; }
   
   .content-card { padding: 16px; }
-  .content-card h3 { font-size: 1rem; padding-right: 60px; }
+  .content-card h3 { font-size: 1rem; padding-right: 60px; text-decoration: none !important; border: none !important; border-bottom: none !important; box-shadow: none !important; background-image: none !important; }
   .content-meta { gap: 8px; font-size: 12px; }
   .card-actions { opacity: 1; top: 12px; right: 12px; }
   .card-actions button { padding: 4px 8px; font-size: 11px; }

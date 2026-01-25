@@ -333,7 +333,10 @@ onMounted(loadArticles)
   margin-bottom: 6px;
   transition: color 0.2s;
   text-decoration: none !important;
-  border: none;
+  border: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  background-image: none !important;
 }
 
 .content-card:hover .card-content h3 {
@@ -466,6 +469,11 @@ onMounted(loadArticles)
   
   .card-content h3 {
     font-size: 15px;
+    text-decoration: none !important;
+    border: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+    background-image: none !important;
   }
   
   .card-content p {
