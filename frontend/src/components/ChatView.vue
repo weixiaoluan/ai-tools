@@ -90,6 +90,30 @@
             
             <!-- AI消息 -->
             <div v-else class="ds-msg ds-msg-ai">
+              <!-- 历史搜索结果（可折叠） -->
+              <div v-if="msg.searchResults" class="ds-search-results">
+                <div class="ds-search-header" @click="toggleSearchResults(idx)">
+                  <svg :class="['ds-search-arrow', { expanded: isSearchResultsExpanded(idx) }]" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                  </svg>
+                  <span>联网搜索结果</span>
+                  <span class="ds-search-count">{{ parseSearchResults(msg.searchResults).length }}条来源</span>
+                </div>
+                <div v-show="isSearchResultsExpanded(idx)" class="ds-search-body">
+                  <div v-for="(item, i) in parseSearchResults(msg.searchResults)" :key="i" class="ds-search-item">
+                    <a :href="item.url" target="_blank" class="ds-search-link">
+                      <span class="ds-search-idx">{{ i + 1 }}</span>
+                      <span class="ds-search-title">{{ item.title }}</span>
+                    </a>
+                    <p class="ds-search-snippet">{{ item.snippet }}</p>
+                  </div>
+                </div>
+              </div>
               <!-- 思考过程 - DeepSeek风格 -->
               <div v-if="getThinking(msg.content)" class="ds-thinking">
                 <div class="ds-thinking-header" @click="toggleThinking(idx)">
@@ -293,6 +317,7 @@ const chatMain = ref(null)
 const inputRef = ref(null)
 const sidebarOpen = ref(true)
 const thinkingExpanded = ref({})
+const historySearchExpanded = ref({})  // 历史消息搜索结果展开状态
 const showCopyTip = ref(false)
 const abortController = ref(null)
 const streamingContent = ref('')  // 实时思考内容
@@ -400,6 +425,20 @@ function toggleThinking(idx) {
 function isThinkingExpanded(idx) {
   // 默认展开
   return thinkingExpanded.value[idx] !== false
+}
+
+function toggleSearchResults(idx) {
+  // 默认折叠，点击切换
+  if (historySearchExpanded.value[idx] === undefined) {
+    historySearchExpanded.value[idx] = true  // 第一次点击展开
+  } else {
+    historySearchExpanded.value[idx] = !historySearchExpanded.value[idx]
+  }
+}
+
+function isSearchResultsExpanded(idx) {
+  // 默认折叠
+  return historySearchExpanded.value[idx] === true
 }
 
 function scrollToBottom() {
@@ -738,15 +777,21 @@ async function sendMessage() {
     const thinkingTime = thinkingSeconds.value
     stopThinkingTimer()
     
-    messages.value.push({ 
+    const msgData = { 
       role: 'assistant', 
       content: fullContent, 
       thinkingTime 
-    })
+    }
+    // 保存搜索结果到消息中
+    if (searchResults.value) {
+      msgData.searchResults = searchResults.value
+    }
+    messages.value.push(msgData)
     
     // 清空实时内容
     streamingContent.value = ''
     streamingAnswer.value = ''
+    searchResults.value = ''
 
     const aiContent = fullContent
     const imgMatch = aiContent.match(/\[生成图片[:：]\s*([^\]]+)\]/i)
